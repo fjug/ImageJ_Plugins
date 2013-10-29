@@ -10,16 +10,18 @@ import NordenTools as nt
 from setup import *
 
 def doPairRegistration(tpA,tpB):
-  fileA = "reg_"+tpA+".tif"
+  fileA = "raw_"+tpA+".tif"
   fileB = "raw_"+tpB+".tif"
   
   IJ.open(output_dir+fileA)
   IJ.open(output_dir+fileB)
 
   IJ.run("Rigid Registration", "initialtransform=[] n=1 tolerance=1.000 level=5 stoplevel=2 materialcenterandbbox=[] " + 
-         "showtransformed template=%s measure=Euclidean"%(fileA))
-  IJ.selectWindow("transformed")
-  IJ.run("Save", "save="+output_dir+"reg_%s.tif"%tpB)
+         "template=%s measure=Euclidean"%(fileA))
+  IJ.selectWindow("Matrix")
+  IJ.saveAs("Text", "/Users/jug/MPI/ProjectNorden/output/matrix_%s_%s.txt"%(tpA,tpB))
+  window = WindowManager.getWindow("Matrix")
+  window.close()
   IJ.run("Close All")
 
 
