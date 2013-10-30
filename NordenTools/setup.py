@@ -1,5 +1,5 @@
 registration_dir = "/Users/jug/MPI/ProjectNorden/output/"
-registration_prefix = "raw_"
+reg_execution_prefixes = [ "raw", "seg", "labels" ]
 
 trakem_dir = "/Users/jug/MPI/ProjectNorden/trackEM/"
 output_dir = "/Users/jug/MPI/ProjectNorden/output/"
