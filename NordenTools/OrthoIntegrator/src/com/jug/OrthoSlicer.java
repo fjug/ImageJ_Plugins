@@ -20,7 +20,7 @@ import javax.swing.JFrame;
 import net.imglib2.Cursor;
 import net.imglib2.img.ImagePlusAdapter;
 import net.imglib2.img.Img;
-import net.imglib2.type.numeric.real.FloatType;
+import net.imglib2.type.numeric.integer.UnsignedShortType;
 
 import com.jug.data.PlotData;
 import com.jug.gui.OrthoSlicerGui;
@@ -43,13 +43,16 @@ public class OrthoSlicer {
 	 */
 	public static void main( final String[] args ) {
 		final ImageJ temp = new ImageJ();
-		IJ.open( "/Users/jug/MPI/ProjectNorden/FirstSegmentation_SumProjection_crop.tif" );
+//		IJ.open( "/Users/jug/MPI/ProjectNorden/FirstSegmentation_SumProjection_crop.tif" );
+//		IJ.open( "/Users/jug/MPI/ProjectNorden/FirstSegmentation3D_wholeStack_crop.tif" );
 
 		final OrthoSlicer main = new OrthoSlicer();
 		guiFrame = new JFrame( "NordenTools -- OrthoSlicer" );
 		main.init( guiFrame );
-		main.loadCurrentImage();
 
+		if ( !main.loadCurrentImage() ) { return; }
+
+		IJ.setTool( "Line Tool" );
 		final OrthoSlicerGui gui = new OrthoSlicerGui( main );
 
 		main.ij = temp;
@@ -62,18 +65,18 @@ public class OrthoSlicer {
 	/**
 	 * Loads current IJ image into the OrthoSlicer
 	 */
-	private void loadCurrentImage() {
+	private boolean loadCurrentImage() {
 		imgPlus = WindowManager.getCurrentImage();
 		if ( imgPlus == null ) {
 			IJ.error( "There must be an active, open window!" );
-			IJ.showMessage( "There must be an active, open window!" );
-			return;
+			return false;
 		}
 //		final int[] dims = imgPlus.getDimensions(); // width, height, nChannels, nSlizes, nFrames
 //		if ( dims[ 3 ] > 1 || dims[ 4 ] < 1 ) {
 //			IJ.error( "The active, open window must contain an image with multiple frames, but no slizes!" );
 //			return;
 //		}
+		return true;
 	}
 
 	/**
@@ -105,7 +108,7 @@ public class OrthoSlicer {
 		try {
 			final Line lineRoi = ( Line ) roi;
 			IJ.log( "Line: (" + lineRoi.x1 + "," + lineRoi.y1 + ")->(" + lineRoi.x2 + "," + lineRoi.y2 + ")" );
-			final PlotData data = sumAlongLine( imgPlus, lineRoi );
+			final PlotData[] data = sumAlongLine( imgPlus, lineRoi );
 		}
 		catch ( final ClassCastException e ) {
 			e.printStackTrace();
@@ -117,42 +120,51 @@ public class OrthoSlicer {
 	 * @param imgPlus2
 	 * @return
 	 */
-	private PlotData sumAlongLine( final ImagePlus imgPlus2, final Line line ) {
-		final Img< FloatType > img = ImagePlusAdapter.wrap( imgPlus );
-		final Cursor< FloatType > cursor = img.cursor();
+	private PlotData[] sumAlongLine( final ImagePlus imgPlus2, final Line line ) {
+		final Img< UnsignedShortType > img = ImagePlusAdapter.wrap( imgPlus );
+		final Cursor< UnsignedShortType > cursor = img.cursor();
 
 		final double vec_x = line.x2 - line.x1;
 		final double vec_y = line.y2 - line.y1;
 		final double vec_len = Math.sqrt( vec_x*vec_x + vec_y*vec_y );
 		final double[] vec = new double[] { vec_x / vec_len, vec_y / vec_len }; //normalized
 
-		final PlotData data = new PlotData( ( int ) Math.floor( line.getLength() ) );
-		final PlotData volume = new PlotData( ( int ) Math.floor( line.getLength() ) );
+		final int frames = imgPlus.getDimensions()[ 4 ]; // 4 happens to be the time-dimension...
+		final PlotData[] data = new PlotData[ frames ];
+		final PlotData[] volume = new PlotData[ frames ];
+		for ( int i = 0; i < frames; i++ ) {
+			data[ i ] = new PlotData( ( int ) Math.floor( line.getLength() ) );
+			volume[ i ] = new PlotData( ( int ) Math.floor( line.getLength() ) );
+		}
 
 		double pixel_value;
 		while ( cursor.hasNext() ) {
 			pixel_value = cursor.next().get();
-			final double xpos = cursor.getLongPosition( 0 ) - line.x1;
-			final double ypos = cursor.getLongPosition( 1 ) - line.y1;
-			final double zpos = cursor.getLongPosition( 2 );
-			if ( zpos == imgPlus.getFrame() ) {
-				// compute (x/y)-projection onto line
-				final double projected_x = vec[ 0 ] * xpos + vec[ 1 ] * ypos;
-				// add the shit
-				if ( projected_x >= 0 && projected_x <= Math.floor( line.getLength() ) ) {
-					data.addValueToXValue( projected_x, pixel_value );
-					if ( pixel_value > 0.0 ) {
-						volume.addValueToXValue( projected_x, 1.0 );
-					}
+			final double xpos = cursor.getIntPosition( 0 ) - line.x1;
+			final double ypos = cursor.getIntPosition( 1 ) - line.y1;
+//			final int zpos = cursor.getIntPosition( 2 );
+			final int tpos = cursor.getIntPosition( 3 );
+
+			// compute (x/y)-projection onto line
+			final double projected_x = vec[ 0 ] * xpos + vec[ 1 ] * ypos;
+			// add the shit
+			if ( projected_x >= 0 && projected_x <= Math.floor( line.getLength() ) ) {
+				data[ tpos ].addValueToXValue( projected_x, pixel_value );
+				if ( pixel_value > 0.0 ) {
+					volume[ tpos ].addValueToXValue( projected_x, 1.0 );
 				}
 			}
 		}
-		final double[] volume_normalized = data.getYData();
-		for ( int i = 0; i < volume_normalized.length; i++ ) {
-			volume_normalized[ i ] /= volume.getYData()[ i ];
+
+		// Plot all the plots... ;)
+		for ( int i = frames - 1; i >= 0; i-- ) {
+			final double[] volume_normalized = data[ i ].getYData();
+			for ( int j = 0; j < volume_normalized.length; j++ ) {
+				volume_normalized[ j ] /= volume[ i ].getYData()[ j ];
+			}
+			final Plot plot = new Plot( "Frame: " + ( i + 1 ), "x", "myosin/volume", data[ i ].getXData(), volume_normalized );
+			plot.show();
 		}
-		final Plot plot = new Plot( "Frame: " + imgPlus.getFrame(), "x", "myosin/volume", data.getXData(), volume_normalized );
-		plot.show();
 		return data;
 	}
 }
