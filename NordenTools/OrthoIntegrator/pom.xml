@@ -78,5 +78,5 @@
 		<url>https://github.com/imagej/minimal-ij1-plugin</url>
 	</scm> -->
 
-	<name>plugins/NordenTools/OrthoSlicer.jar</name>
+	<name>plugins/NordenJARs/OrthoSlicer.jar</name>
 </project>

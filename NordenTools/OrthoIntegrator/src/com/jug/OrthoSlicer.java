@@ -12,10 +12,10 @@ import ij.gui.Line;
 import ij.gui.Plot;
 import ij.gui.Roi;
 
-import java.awt.event.WindowAdapter;
-import java.awt.event.WindowEvent;
+import java.io.File;
+import java.util.ArrayList;
 
-import javax.swing.JFrame;
+import javax.swing.JFileChooser;
 
 import net.imglib2.Cursor;
 import net.imglib2.img.ImagePlusAdapter;
@@ -23,14 +23,14 @@ import net.imglib2.img.Img;
 import net.imglib2.type.numeric.integer.UnsignedShortType;
 
 import com.jug.data.PlotData;
-import com.jug.gui.OrthoSlicerGui;
 
 /**
  * @author jug
  */
 public class OrthoSlicer {
 
-	private static JFrame guiFrame;
+	private static OrthoSlicer main;
+
 	public ImageJ ij;
 	private ImagePlus imgPlus = null;
 
@@ -42,24 +42,20 @@ public class OrthoSlicer {
 	 *            muh!
 	 */
 	public static void main( final String[] args ) {
-		final ImageJ temp = new ImageJ();
-//		IJ.open( "/Users/jug/MPI/ProjectNorden/FirstSegmentation_SumProjection_crop.tif" );
-//		IJ.open( "/Users/jug/MPI/ProjectNorden/FirstSegmentation3D_wholeStack_crop.tif" );
+		ImageJ temp = IJ.getInstance();
 
-		final OrthoSlicer main = new OrthoSlicer();
-		guiFrame = new JFrame( "NordenTools -- OrthoSlicer" );
-		main.init( guiFrame );
+		if ( temp == null ) {
+			temp = new ImageJ();
+			IJ.open( "/Users/jug/MPI/ProjectNorden/FirstSegmentation3D_wholeStack_crop.tif" );
+		}
+
+		main = new OrthoSlicer();
 
 		if ( !main.loadCurrentImage() ) { return; }
+	}
 
-		IJ.setTool( "Line Tool" );
-		final OrthoSlicerGui gui = new OrthoSlicerGui( main );
-
-		main.ij = temp;
-		guiFrame.add( gui );
-		guiFrame.setSize( 150, 100 );
-		guiFrame.setLocation( 0, 100 );
-		guiFrame.setVisible( true );
+	public static OrthoSlicer getInstance() {
+		return main;
 	}
 
 	/**
@@ -80,35 +76,44 @@ public class OrthoSlicer {
 	}
 
 	/**
-	 * Initializes the main app. This method contains platform
-	 * specific code like setting icons, etc.
-	 *
-	 * @param guiFrame
-	 *            the JFrame containing the MotherMachine.
-	 */
-	private void init( final JFrame guiFrame ) {
-		guiFrame.addWindowListener( new WindowAdapter() {
-
-			@Override
-			public void windowClosing( final WindowEvent we ) {
-				System.exit( 0 );
-			}
-		} );
-	}
-
-	/**
 	 * Does the orthogonal slicing and summing.
 	 */
-	public void slice() {
+	public void projectToLine(final boolean showPlots) {
 		final Roi roi = this.imgPlus.getRoi();
 		if ( roi == null ) {
 			IJ.error( "Use the imagej line-tool to draw a line anling which you want to sum ortho-slices." );
 			return;
 		}
+
+		final JFileChooser chooser = new JFileChooser();
+
+		chooser.setCurrentDirectory( new File( imgPlus.getOriginalFileInfo().directory ) );
+		chooser.setDialogTitle( "Choose folder to export plot data to..." );
+		chooser.setFileSelectionMode( JFileChooser.DIRECTORIES_ONLY );
+		chooser.setAcceptAllFileFilterUsed( false );
+		chooser.setMultiSelectionEnabled( false );
+
+		File path = null; // output folder for CSV-data...
+		if ( chooser.showSaveDialog( IJ.getInstance() ) == JFileChooser.APPROVE_OPTION ) {
+			path = chooser.getSelectedFile();
+		}
+
 		try {
 			final Line lineRoi = ( Line ) roi;
-			IJ.log( "Line: (" + lineRoi.x1 + "," + lineRoi.y1 + ")->(" + lineRoi.x2 + "," + lineRoi.y2 + ")" );
-			final PlotData[] data = sumAlongLine( imgPlus, lineRoi );
+//			IJ.log( "Line: (" + lineRoi.x1 + "," + lineRoi.y1 + ")->(" + lineRoi.x2 + "," + lineRoi.y2 + ")" );
+			final PlotData[] data = concentrationAlongLine( lineRoi );
+
+			// Export plot data and show plots
+			for ( int i = 0; i < data.length; i++ ) {
+				if ( path != null ) {
+					data[ i ].saveToFile( path, String.format( "concentration_plot_data_t%03d.csv", i + 1 ) );
+				}
+
+				if ( showPlots ) {
+					plotStripped( "Frame: " + ( i + 1 ), data[ i ].getXData(), data[ i ].getYData() );
+				}
+			}
+
 		}
 		catch ( final ClassCastException e ) {
 			e.printStackTrace();
@@ -117,10 +122,38 @@ public class OrthoSlicer {
 	}
 
 	/**
+	 * @param xData
+	 * @param volume_normalized
+	 */
+	private Plot plotStripped( final String title, final double[] xData, final double[] yData ) {
+		final ArrayList< Double > alX = new ArrayList< Double >();
+		final ArrayList< Double > alY = new ArrayList< Double >();
+
+		for ( int i = 0; i < xData.length; i++ ) {
+			if ( yData[ i ] > 0.0001 ) {
+				alX.add( new Double( xData[ i ] ) );
+				alY.add( new Double( yData[ i ] ) );
+			}
+		}
+
+		final double[] x = new double[ alX.size() ];
+		final double[] y = new double[ alY.size() ];
+		for ( int i = 0; i < alX.size(); i++ ) {
+			x[ i ] = alX.get( i ).doubleValue();
+			y[ i ] = alY.get( i ).doubleValue();
+		}
+
+		final Plot plot = new Plot( title, "x", "myosin/volume", x, y );
+		plot.show();
+
+		return plot;
+	}
+
+	/**
 	 * @param imgPlus2
 	 * @return
 	 */
-	private PlotData[] sumAlongLine( final ImagePlus imgPlus2, final Line line ) {
+	private PlotData[] concentrationAlongLine( final Line line ) {
 		final Img< UnsignedShortType > img = ImagePlusAdapter.wrap( imgPlus );
 		final Cursor< UnsignedShortType > cursor = img.cursor();
 
@@ -130,11 +163,14 @@ public class OrthoSlicer {
 		final double[] vec = new double[] { vec_x / vec_len, vec_y / vec_len }; //normalized
 
 		final int frames = imgPlus.getDimensions()[ 4 ]; // 4 happens to be the time-dimension...
-		final PlotData[] data = new PlotData[ frames ];
+		final PlotData[] summed_intensities = new PlotData[ frames ];
 		final PlotData[] volume = new PlotData[ frames ];
+		final PlotData[] concentrations = new PlotData[ frames ];
+
 		for ( int i = 0; i < frames; i++ ) {
-			data[ i ] = new PlotData( ( int ) Math.floor( line.getLength() ) );
+			summed_intensities[ i ] = new PlotData( ( int ) Math.floor( line.getLength() ) );
 			volume[ i ] = new PlotData( ( int ) Math.floor( line.getLength() ) );
+			concentrations[ i ] = new PlotData( ( int ) Math.floor( line.getLength() ) );
 		}
 
 		double pixel_value;
@@ -149,22 +185,106 @@ public class OrthoSlicer {
 			final double projected_x = vec[ 0 ] * xpos + vec[ 1 ] * ypos;
 			// add the shit
 			if ( projected_x >= 0 && projected_x <= Math.floor( line.getLength() ) ) {
-				data[ tpos ].addValueToXValue( projected_x, pixel_value );
 				if ( pixel_value > 0.0 ) {
+					summed_intensities[ tpos ].addValueToXValue( projected_x, pixel_value );
 					volume[ tpos ].addValueToXValue( projected_x, 1.0 );
 				}
 			}
 		}
 
-		// Plot all the plots... ;)
-		for ( int i = frames - 1; i >= 0; i-- ) {
-			final double[] volume_normalized = data[ i ].getYData();
-			for ( int j = 0; j < volume_normalized.length; j++ ) {
-				volume_normalized[ j ] /= volume[ i ].getYData()[ j ];
+		// compute concentrations (iterate over summed intensities and divide by volume)
+		for ( int t = 0; t < summed_intensities.length; t++ ) {
+			for ( int i = 0; i < summed_intensities[ t ].getXData().length; i++ ) {
+				concentrations[ t ].addValueToXValue( summed_intensities[ t ].getXData()[ i ], summed_intensities[ t ].getYData()[ i ] / volume[ t ].getYData()[ i ] );
 			}
-			final Plot plot = new Plot( "Frame: " + ( i + 1 ), "x", "myosin/volume", data[ i ].getXData(), volume_normalized );
-			plot.show();
 		}
-		return data;
+
+		return concentrations;
 	}
+
+	/**
+	 *
+	 */
+	public void shapeFittingGauss( final boolean showPlots ) {
+		final Roi roi = this.imgPlus.getRoi();
+		if ( roi == null ) {
+			IJ.error( "Use the imagej line-tool to draw a line anling which you want to sum ortho-slices." );
+			return;
+		}
+
+		final JFileChooser chooser = new JFileChooser();
+
+		chooser.setCurrentDirectory( new File( imgPlus.getOriginalFileInfo().directory ) );
+		chooser.setDialogTitle( "Choose folder to export gaussian shape fits to..." );
+		chooser.setFileSelectionMode( JFileChooser.DIRECTORIES_ONLY );
+		chooser.setAcceptAllFileFilterUsed( false );
+		chooser.setMultiSelectionEnabled( false );
+
+		File path = null; // output folder for CSV-data...
+		if ( chooser.showSaveDialog( IJ.getInstance() ) == JFileChooser.APPROVE_OPTION ) {
+			path = chooser.getSelectedFile();
+		}
+
+		try {
+			final Line lineRoi = ( Line ) roi;
+//			final Gauss[] fits = shapeAlongLine_Gauss( lineRoi );
+		}
+		catch ( final ClassCastException e ) {
+			e.printStackTrace();
+			IJ.error( "Found a non-line ROI... please use the line-tool to indicate the slicing direction!" );
+		}
+
+		// Export and plot
+		if ( showPlots ) {
+
+		}
+	}
+
+//	/**
+//	 *
+//	 */
+//	public Gauss[] shapeAlongLine_Gauss( final Line line ) {
+//		final Img< UnsignedShortType > img = ImagePlusAdapter.wrap( imgPlus );
+//		final Cursor< UnsignedShortType > cursor = img.cursor();
+//
+//		final double vec_x = line.x2 - line.x1;
+//		final double vec_y = line.y2 - line.y1;
+//		final double vec_len = Math.sqrt( vec_x * vec_x + vec_y * vec_y );
+//		final double[] vec = new double[] { vec_x / vec_len, vec_y / vec_len }; //normalized
+//
+//		final int frames = imgPlus.getDimensions()[ 4 ]; // 4 happens to be the time-dimension...
+//		final Gauss[] shape = new Gauss[ ( int ) line.getLength() ];
+//
+//		for ( int i = 0; i < frames; i++ ) {
+//			shape[ i ] = new Gauss();
+//		}
+//
+//		double pixel_value;
+//		while ( cursor.hasNext() ) {
+//			pixel_value = cursor.next().get();
+//			final double xpos = cursor.getIntPosition( 0 ) - line.x1;
+//			final double ypos = cursor.getIntPosition( 1 ) - line.y1;
+////			final int zpos = cursor.getIntPosition( 2 );
+//			final int tpos = cursor.getIntPosition( 3 );
+//
+//			// compute (x/y)-projection onto line
+//			final double projected_x = vec[ 0 ] * xpos + vec[ 1 ] * ypos;
+//			// add the shit
+//			if ( projected_x >= 0 && projected_x <= Math.floor( line.getLength() ) ) {
+//				if ( pixel_value > 0.0 ) {
+//					shape[ Math.round( a ) ].addDatapoint( projected_x, pixel_value );
+//					volume[ tpos ].addValueToXValue( projected_x, 1.0 );
+//				}
+//			}
+//		}
+//
+//		// compute concentrations (iterate over summed intensities and divide by volume)
+//		for ( int t = 0; t < summed_intensities.length; t++ ) {
+//			for ( int i = 0; i < summed_intensities[ t ].getXData().length; i++ ) {
+//				concentrations[ t ].addValueToXValue( summed_intensities[ t ].getXData()[ i ], summed_intensities[ t ].getYData()[ i ] / volume[ t ].getYData()[ i ] );
+//			}
+//		}
+//
+//		return concentrations;
+//	}
 }

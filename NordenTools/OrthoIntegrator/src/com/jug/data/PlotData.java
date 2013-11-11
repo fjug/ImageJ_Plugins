@@ -3,6 +3,14 @@
  */
 package com.jug.data;
 
+import ij.IJ;
+
+import java.io.File;
+import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.OutputStreamWriter;
+
 
 
 /**
@@ -46,5 +54,32 @@ public class PlotData {
 		final double fraq = x - x1;
 		data[ x1 ] += ( 1 - fraq ) * y;
 		data[ x2 ] += fraq * y;
+	}
+
+	/**
+	 * @param path
+	 * @param format
+	 */
+	public void saveToFile( final File path, final String filename ) {
+		final File file = new File( path, filename );
+		try {
+			final FileOutputStream fos = new FileOutputStream( file );
+			final OutputStreamWriter out = new OutputStreamWriter( fos );
+
+			for ( int i = 0; i < data.length; i++ ) {
+				if ( !Double.isNaN( data[ i ] ) ) {
+					out.write( String.format( "%4d, %12.5f\n", i, data[ i ] ) );
+				}
+			}
+			out.close();
+			fos.close();
+		}
+		catch ( final FileNotFoundException e ) {
+			IJ.error( "File '" + file.getAbsolutePath() + "' could not be opened!" );
+		}
+		catch ( final IOException e ) {
+			IJ.error( "Could not write to file '" + file.getAbsolutePath() + "'!" );
+		}
+
 	}
 }

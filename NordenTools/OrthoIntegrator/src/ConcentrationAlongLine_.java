@@ -9,7 +9,7 @@ import com.jug.OrthoSlicer;
 /**
  * @author jug
  */
-public class SumAlongLine_ implements PlugIn {
+public class ConcentrationAlongLine_ implements PlugIn {
 
 	/**
 	 * @see ij.plugin.PlugIn#run(java.lang.String)
@@ -17,6 +17,7 @@ public class SumAlongLine_ implements PlugIn {
 	@Override
 	public void run( final String arg ) {
 		OrthoSlicer.main( null );
+		OrthoSlicer.getInstance().projectToLine( true );
 	}
 
 }
