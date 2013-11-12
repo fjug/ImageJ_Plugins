@@ -14,15 +14,21 @@ import ij.gui.Roi;
 
 import java.io.File;
 import java.util.ArrayList;
+import java.util.List;
 
 import javax.swing.JFileChooser;
 
 import net.imglib2.Cursor;
 import net.imglib2.img.ImagePlusAdapter;
 import net.imglib2.img.Img;
+import net.imglib2.img.display.imagej.ImageJFunctions;
 import net.imglib2.type.numeric.integer.UnsignedShortType;
+import net.imglib2.type.numeric.real.DoubleType;
 
+import com.jug.data.Ellipse2D;
 import com.jug.data.PlotData;
+import com.jug.data.PointCloud2D;
+import com.jug.util.DumpImgFactory;
 
 /**
  * @author jug
@@ -46,12 +52,16 @@ public class OrthoSlicer {
 
 		if ( temp == null ) {
 			temp = new ImageJ();
-			IJ.open( "/Users/jug/MPI/ProjectNorden/FirstSegmentation3D_wholeStack_crop.tif" );
+			IJ.open( "/Users/jug/MPI/ProjectNorden/FirstSegmentation3D_wholeStack_NordenCrop.tif" );
 		}
 
 		main = new OrthoSlicer();
 
 		if ( !main.loadCurrentImage() ) { return; }
+
+		final Line lineRoi = new Line( 0, main.imgPlus.getHeight(), main.imgPlus.getWidth(), 0 );
+		main.imgPlus.setRoi( lineRoi, true );
+		main.shapeFittingEllipses( true );
 	}
 
 	public static OrthoSlicer getInstance() {
@@ -205,7 +215,7 @@ public class OrthoSlicer {
 	/**
 	 *
 	 */
-	public void shapeFittingGauss( final boolean showPlots ) {
+	public void shapeFittingEllipses( final boolean showPlots ) {
 		final Roi roi = this.imgPlus.getRoi();
 		if ( roi == null ) {
 			IJ.error( "Use the imagej line-tool to draw a line anling which you want to sum ortho-slices." );
@@ -225,13 +235,37 @@ public class OrthoSlicer {
 			path = chooser.getSelectedFile();
 		}
 
+		Line lineRoi = null;
 		try {
-			final Line lineRoi = ( Line ) roi;
-//			final Gauss[] fits = shapeAlongLine_Gauss( lineRoi );
-		}
-		catch ( final ClassCastException e ) {
+			lineRoi = ( Line ) roi;
+		} catch ( final ClassCastException e ) {
 			e.printStackTrace();
 			IJ.error( "Found a non-line ROI... please use the line-tool to indicate the slicing direction!" );
+			return;
+		}
+
+		// extract point (voxel) coulds along line-ROI)
+		final List< List< PointCloud2D< Double >>> allPointClouds = getOrthogonalPointClouds( lineRoi, 4.0 );
+
+		// create new Img<Double> showing those points
+		final Img< DoubleType > dump = DumpImgFactory.dumpPointClouds( allPointClouds, true );
+		ImageJFunctions.show( dump, "Dumped PointClouds" );
+
+		// iterate over all time-point and there over all point-clouds -- approximate by ellipse and collect those!
+		final List< List< Ellipse2D >> ellipticalShapes = new ArrayList< List< Ellipse2D >>();
+		for ( final List< PointCloud2D< Double > > shapeClouds : allPointClouds ) {
+			IJ.log( "--- NEXT SHAPE -------------------------------------------------" );
+			final ArrayList< Ellipse2D > newShape = new ArrayList< Ellipse2D >();
+			for ( final PointCloud2D< Double > cloud : shapeClouds ) {
+				if ( cloud.isEmpty() ) {
+					newShape.add( new Ellipse2D() );
+				} else {
+					final Ellipse2D ellipse = cloud.getEllipticalApproximation();
+					newShape.add( ellipse );
+					IJ.log( String.format( "Ellipse: (x,y,z);angle;(a,b) = (%.2f, %.2f, %d); %.2f; (%.2f, %.2f)", ellipse.getCenter().getX(), ellipse.getCenter().getY(), newShape.size(), ellipse.getAngle(), ellipse.getA(), ellipse.getB() ) );
+				}
+			}
+			ellipticalShapes.add( newShape );
 		}
 
 		// Export and plot
@@ -240,51 +274,67 @@ public class OrthoSlicer {
 		}
 	}
 
-//	/**
-//	 *
-//	 */
-//	public Gauss[] shapeAlongLine_Gauss( final Line line ) {
-//		final Img< UnsignedShortType > img = ImagePlusAdapter.wrap( imgPlus );
-//		final Cursor< UnsignedShortType > cursor = img.cursor();
-//
-//		final double vec_x = line.x2 - line.x1;
-//		final double vec_y = line.y2 - line.y1;
-//		final double vec_len = Math.sqrt( vec_x * vec_x + vec_y * vec_y );
-//		final double[] vec = new double[] { vec_x / vec_len, vec_y / vec_len }; //normalized
-//
-//		final int frames = imgPlus.getDimensions()[ 4 ]; // 4 happens to be the time-dimension...
-//		final Gauss[] shape = new Gauss[ ( int ) line.getLength() ];
-//
-//		for ( int i = 0; i < frames; i++ ) {
-//			shape[ i ] = new Gauss();
-//		}
-//
-//		double pixel_value;
-//		while ( cursor.hasNext() ) {
-//			pixel_value = cursor.next().get();
-//			final double xpos = cursor.getIntPosition( 0 ) - line.x1;
-//			final double ypos = cursor.getIntPosition( 1 ) - line.y1;
-////			final int zpos = cursor.getIntPosition( 2 );
-//			final int tpos = cursor.getIntPosition( 3 );
-//
-//			// compute (x/y)-projection onto line
-//			final double projected_x = vec[ 0 ] * xpos + vec[ 1 ] * ypos;
-//			// add the shit
-//			if ( projected_x >= 0 && projected_x <= Math.floor( line.getLength() ) ) {
-//				if ( pixel_value > 0.0 ) {
-//					shape[ Math.round( a ) ].addDatapoint( projected_x, pixel_value );
-//					volume[ tpos ].addValueToXValue( projected_x, 1.0 );
-//				}
-//			}
-//		}
-//
-//		// compute concentrations (iterate over summed intensities and divide by volume)
-//		for ( int t = 0; t < summed_intensities.length; t++ ) {
-//			for ( int i = 0; i < summed_intensities[ t ].getXData().length; i++ ) {
-//				concentrations[ t ].addValueToXValue( summed_intensities[ t ].getXData()[ i ], summed_intensities[ t ].getYData()[ i ] / volume[ t ].getYData()[ i ] );
-//			}
-//		}
-//
-//		return concentrations;
-//	}
+	/**
+	 * Iterates over imgPlus, projects each voxel onto given line and adds two
+	 * copies of that voxel into PointClouds2D-objects.
+	 * Two copies since projection will lie in between to ortho-slizes along
+	 * line. Each copy will also split the voxel intensity based on the relative
+	 * distance of the voxel center to the two ortho-slizes.
+	 *
+	 * @param line
+	 *            Line ROI onto which to project. (We imagine this line to be at
+	 *            z=0!)
+	 * @return
+	 */
+	private List< List< PointCloud2D< Double >>> getOrthogonalPointClouds( final Line line, final double factorVoxelDepth ) {
+		final int num_frames = imgPlus.getDimensions()[ 4 ]; // happens to be the time dimension
+		final int num_slices = ( int ) line.getLength();
+		final List< List< PointCloud2D< Double >>> ret = new ArrayList< List< PointCloud2D< Double >>>();
+
+		// Add new PointCloud2D for each ortho-slice
+		for ( int i = 0; i < num_frames; i++ ) {
+			ret.add( new ArrayList< PointCloud2D< Double >>() );
+			for ( int j = 0; j < num_slices; j++ ) {
+				ret.get( i ).add( new PointCloud2D< Double >() );
+			}
+		}
+
+		// Wrap imgPlus into Img
+		final Img< UnsignedShortType > img = ImagePlusAdapter.wrap( imgPlus );
+		final Cursor< UnsignedShortType > cursor = img.cursor();
+
+		// get 'line' as vector based at 0
+		final double vec_x = line.x2 - line.x1;
+		final double vec_y = line.y2 - line.y1;
+		final double vec_len = Math.sqrt( vec_x * vec_x + vec_y * vec_y );
+
+		// direction of 'line' as normalized vecter at 0
+		final double[] vec_direction = new double[] { vec_x / vec_len, vec_y / vec_len };  //normalized
+		final double[] vec_slice_x = new double[] { vec_direction[1], -vec_direction[0] }; //orthogonal to 'vec_direction'
+
+		// Iterate over each voxel in Img
+		double pixel_value;
+		while ( cursor.hasNext() ) {
+			pixel_value = cursor.next().get();
+			final double xpos = cursor.getIntPosition( 0 ) - line.x1;
+			final double ypos = cursor.getIntPosition( 1 ) - line.y1;
+			final int zpos = cursor.getIntPosition( 2 );
+			final double zdepth = factorVoxelDepth * zpos;
+			final int tpos = cursor.getIntPosition( 3 );
+
+			// compute (x/y)-projection onto line
+			final double fractional_slice_num = vec_direction[ 0 ] * xpos + vec_direction[ 1 ] * ypos;
+			final double dist_to_line = vec_slice_x[ 0 ] * xpos + vec_slice_x[ 1 ] * ypos;
+			// add the shit
+			if ( fractional_slice_num >= 0 && fractional_slice_num <= Math.floor( line.getLength() ) ) {
+				if ( pixel_value > 0.0 ) {
+					final double p = ( fractional_slice_num - Math.floor( fractional_slice_num ) );
+					ret.get( tpos ).get( ( int ) fractional_slice_num ).addPoint( dist_to_line, zdepth, p * pixel_value );
+					ret.get( tpos ).get( ( int ) fractional_slice_num + 1 ).addPoint( dist_to_line, zdepth, ( 1 - p ) * pixel_value );
+				}
+			}
+		}
+
+		return ret;
+	}
 }

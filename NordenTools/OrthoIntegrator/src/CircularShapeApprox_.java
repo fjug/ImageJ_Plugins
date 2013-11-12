@@ -17,7 +17,7 @@ public class CircularShapeApprox_ implements PlugIn {
 	@Override
 	public void run( final String arg ) {
 		OrthoSlicer.main( null );
-		OrthoSlicer.getInstance().shapeFittingGauss( true );
+		OrthoSlicer.getInstance().shapeFittingEllipses( true );
 	}
 
 }
