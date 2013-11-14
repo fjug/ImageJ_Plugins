@@ -13,6 +13,10 @@ import ij.gui.Plot;
 import ij.gui.Roi;
 
 import java.io.File;
+import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.OutputStreamWriter;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -28,6 +32,7 @@ import net.imglib2.type.numeric.real.DoubleType;
 import com.jug.data.Ellipse2D;
 import com.jug.data.PlotData;
 import com.jug.data.PointCloud2D;
+import com.jug.data.Vector2D;
 import com.jug.util.DumpImgFactory;
 
 /**
@@ -252,25 +257,64 @@ public class OrthoSlicer {
 		ImageJFunctions.show( dump, "Dumped PointClouds" );
 
 		// iterate over all time-point and there over all point-clouds -- approximate by ellipse and collect those!
+		int t = 1;
 		final List< List< Ellipse2D >> ellipticalShapes = new ArrayList< List< Ellipse2D >>();
 		for ( final List< PointCloud2D< Double > > shapeClouds : allPointClouds ) {
-			IJ.log( "--- NEXT SHAPE -------------------------------------------------" );
+//			IJ.log( "--- NEXT SHAPE -------------------------------------------------" );
 			final ArrayList< Ellipse2D > newShape = new ArrayList< Ellipse2D >();
+			int z = 1;
 			for ( final PointCloud2D< Double > cloud : shapeClouds ) {
 				if ( cloud.isEmpty() ) {
 					newShape.add( new Ellipse2D() );
 				} else {
 					final Ellipse2D ellipse = cloud.getEllipticalApproximation();
 					newShape.add( ellipse );
-					IJ.log( String.format( "Ellipse: (x,y,z);angle;(a,b) = (%.2f, %.2f, %d); %.2f; (%.2f, %.2f)", ellipse.getCenter().getX(), ellipse.getCenter().getY(), newShape.size(), ellipse.getAngle(), ellipse.getA(), ellipse.getB() ) );
+					if ( t == 6 && z >= 236 && z <= 237 ) {
+						IJ.log( String.format( "Ellipse: (x,y,z);angle;(a,b) = (%.2f, %.2f, %d); %.2f; (%.2f, %.2f)", ellipse.getCenter().getX(), ellipse.getCenter().getY(), newShape.size(), ellipse.getAngle(), ellipse.getA(), ellipse.getB() ) );
+					}
 				}
+				z++;
 			}
+
+			if ( path != null ) {
+				saveEllipticalShapeToFile( newShape, path, String.format( "elliptical_shape_t%03d.csv", ellipticalShapes.size() + 1 ) );
+			}
+
 			ellipticalShapes.add( newShape );
+			t++;
 		}
 
-		// Export and plot
+		// create new Img<Double> showing the approximated ellipses
+		final Img< DoubleType > dump2 = DumpImgFactory.dumpEllipticalShapes( ellipticalShapes );
+		ImageJFunctions.show( dump2, "Dumped Ellipses" );
+
+		// Plot
 		if ( showPlots ) {
 
+		}
+	}
+
+	/**
+	 * @param newShape
+	 * @param path
+	 * @param format
+	 */
+	private void saveEllipticalShapeToFile( final ArrayList< Ellipse2D > shape, final File path, final String filename ) {
+		final File file = new File( path, filename );
+		try {
+			final FileOutputStream fos = new FileOutputStream( file );
+			final OutputStreamWriter out = new OutputStreamWriter( fos );
+
+			out.write( "# Each row one ellipse, parametrized as: x, y, angle, a, b" );
+			for ( final Ellipse2D e : shape ) {
+				out.write( String.format( "%f, %f, %f, %f, %f\n", e.getCenter().getX(), e.getCenter().getY(), e.getAngle(), e.getA(), e.getB() ) );
+			}
+			out.close();
+			fos.close();
+		} catch ( final FileNotFoundException e ) {
+			IJ.error( "File '" + file.getAbsolutePath() + "' could not be opened!" );
+		} catch ( final IOException e ) {
+			IJ.error( "Could not write to file '" + file.getAbsolutePath() + "'!" );
 		}
 	}
 
@@ -294,7 +338,7 @@ public class OrthoSlicer {
 		// Add new PointCloud2D for each ortho-slice
 		for ( int i = 0; i < num_frames; i++ ) {
 			ret.add( new ArrayList< PointCloud2D< Double >>() );
-			for ( int j = 0; j < num_slices; j++ ) {
+			for ( int j = 0; j <= num_slices; j++ ) { // '=' because of fractional_slice_num below
 				ret.get( i ).add( new PointCloud2D< Double >() );
 			}
 		}
@@ -306,11 +350,9 @@ public class OrthoSlicer {
 		// get 'line' as vector based at 0
 		final double vec_x = line.x2 - line.x1;
 		final double vec_y = line.y2 - line.y1;
-		final double vec_len = Math.sqrt( vec_x * vec_x + vec_y * vec_y );
-
 		// direction of 'line' as normalized vecter at 0
-		final double[] vec_direction = new double[] { vec_x / vec_len, vec_y / vec_len };  //normalized
-		final double[] vec_slice_x = new double[] { vec_direction[1], -vec_direction[0] }; //orthogonal to 'vec_direction'
+		final Vector2D vec_line_direction = new Vector2D( vec_x, vec_y );
+		final Vector2D vec_orthogonal_direction = new Vector2D( vec_y, -vec_x );
 
 		// Iterate over each voxel in Img
 		double pixel_value;
@@ -323,8 +365,9 @@ public class OrthoSlicer {
 			final int tpos = cursor.getIntPosition( 3 );
 
 			// compute (x/y)-projection onto line
-			final double fractional_slice_num = vec_direction[ 0 ] * xpos + vec_direction[ 1 ] * ypos;
-			final double dist_to_line = vec_slice_x[ 0 ] * xpos + vec_slice_x[ 1 ] * ypos;
+			final Vector2D vec_pos = new Vector2D( xpos, ypos );
+			final double fractional_slice_num = vec_line_direction.project( vec_pos ).getLength();
+			final double dist_to_line = vec_orthogonal_direction.project( vec_pos ).getLength();
 			// add the shit
 			if ( fractional_slice_num >= 0 && fractional_slice_num <= Math.floor( line.getLength() ) ) {
 				if ( pixel_value > 0.0 ) {

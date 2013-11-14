@@ -93,11 +93,12 @@ public class PointCloud1D {
 		for ( int i = 0; i < points1.length; i++ ) {
 			cov[ 0 ][ 0 ] += ( points1[ i ] - e1 ) * ( points1[ i ] - e1 );
 			cov[ 0 ][ 1 ] += ( points1[ i ] - e1 ) * ( points2[ i ] - e2 );
+			cov[ 1 ][ 0 ] += ( points2[ i ] - e2 ) * ( points1[ i ] - e2 );
 			cov[ 1 ][ 1 ] += ( points2[ i ] - e2 ) * ( points2[ i ] - e2 );
 		}
 		cov[ 0 ][ 0 ] /= points1.length;
 		cov[ 0 ][ 1 ] /= points1.length;
-		cov[ 1 ][ 0 ] = cov[ 0 ][ 1 ];
+		cov[ 1 ][ 0 ] /= points1.length;
 		cov[ 1 ][ 1 ] /= points1.length;
 
 		return new Matrix( cov );

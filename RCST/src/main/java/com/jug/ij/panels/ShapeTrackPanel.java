@@ -123,9 +123,10 @@ public class ShapeTrackPanel extends JPanel implements ActionListener, ChangeLis
 		pContent.add( panelVerticalHelper, BorderLayout.WEST );
 
 		// Viewer
-		iviewer = new InteractiveViewerPanel( ( int ) img.dimension( 0 ), ( int ) img.dimension( 1 ) );
-		setScreenImage( 0, 0 );
-		pContent.add( iviewer, BorderLayout.CENTER );
+//		iviewer = new InteractiveViewerPanel( ( int ) img.dimension( 0 ), ( int ) img.dimension( 1 ) );
+//		setScreenImage( 0, 0 );
+//		pContent.add( iviewer, BorderLayout.CENTER );
+
 
 		// Controls & Toolbar
 		toolbar = createToolBar( iviewer.getEditor() );

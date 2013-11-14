@@ -5,7 +5,6 @@ package com.jug.imglib2.viewer;
 
 import java.awt.BorderLayout;
 
-import javax.swing.JFrame;
 import javax.swing.JScrollPane;
 
 import org.jhotdraw.draw.DefaultDrawing;
@@ -42,16 +41,11 @@ public class InteractiveViewerPanel extends javax.swing.JPanel {
 
 		buildGui();
 
-		imglib2viewer.setContentWidth( w );
-		imglib2viewer.setContentHeight( h );
 		sp.setPreferredSize( imglib2viewer.getPreferredSize() );
 	}
 
 	private void buildGui() {
 		this.setLayout( new BorderLayout() );
-		// Place the drawing view inside a scroll pane in the center
-		sp = new JScrollPane( imglib2viewer );
-		this.add( sp, BorderLayout.CENTER );
 	}
 
 	/**
@@ -61,13 +55,13 @@ public class InteractiveViewerPanel extends javax.swing.JPanel {
 		return imglib2viewer;
 	}
 
-	public static void mainnnnnnn( final String[] args ) {
-		final JFrame f = new JFrame( "Demo" );
-		f.setDefaultCloseOperation( JFrame.EXIT_ON_CLOSE );
-		f.setSize( 400, 300 );
-		f.getContentPane().add( new InteractiveViewerPanel() );
-		f.setVisible( true );
-	}
+//	public static void mainnnnnnn( final String[] args ) {
+//		final JFrame f = new JFrame( "Demo" );
+//		f.setDefaultCloseOperation( JFrame.EXIT_ON_CLOSE );
+//		f.setSize( 400, 300 );
+//		f.getContentPane().add( new InteractiveViewerPanel() );
+//		f.setVisible( true );
+//	}
 
 	/**
 	 * @return

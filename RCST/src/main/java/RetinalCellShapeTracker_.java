@@ -61,10 +61,10 @@ public class RetinalCellShapeTracker_ extends PlugInFrame implements ActionListe
 
 	public static void main( final String[] args ) {
 		// set the plugins.dir property to make the plugin appear in the Plugins menu
-		final Class< ? > clazz = RetinalCellShapeTracker_.class;
-		final String url = clazz.getResource( "/" + clazz.getName().replace( '.', '/' ) + ".class" ).toString();
-		final String pluginsDir = url.substring( 5, url.length() - clazz.getName().length() - 6 );
-		System.setProperty( "plugins.dir", pluginsDir );
+//		final Class< ? > clazz = RetinalCellShapeTracker_.class;
+//		final String url = clazz.getResource( "/" + clazz.getName().replace( '.', '/' ) + ".class" ).toString();
+//		final String pluginsDir = url.substring( 5, url.length() - clazz.getName().length() - 6 );
+//		System.setProperty( "plugins.dir", pluginsDir );
 
 		new ImageJ();
 //		final ImagePlus image = IJ.openImage( "http://imagej.net/images/clown.jpg" );
@@ -72,7 +72,7 @@ public class RetinalCellShapeTracker_ extends PlugInFrame implements ActionListe
 		image.show();
 		WindowManager.addWindow( image.getWindow() );
 
-		IJ.runPlugIn( clazz.getName(), "parameter=Hello" );
+//		IJ.runPlugIn( clazz.getName(), "parameter=Hello" );
 	}
 
 	/**
@@ -81,7 +81,7 @@ public class RetinalCellShapeTracker_ extends PlugInFrame implements ActionListe
 	@Override
 	public void actionPerformed( final ActionEvent e ) {
 		if ( e.getSource().equals( cropPanel.getButtonCrop() ) ) {
-			this.setVisible( false );
+//			this.setVisible( false );
 			this.remove( cropPanel );
 
 			// Here we switch to ImgLib2...
@@ -89,7 +89,7 @@ public class RetinalCellShapeTracker_ extends PlugInFrame implements ActionListe
 
 			trackPanel = new ShapeTrackPanel( this, croppedImg );
 			this.add( trackPanel );
-			this.setVisible( true );
+//			this.setVisible( true );
 		}
 	}
 

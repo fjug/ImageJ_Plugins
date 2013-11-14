@@ -7,19 +7,34 @@ package com.jug.data;
 /**
  * @author jug
  */
-public class Point2D< T > {
+public class Point2D {
 
 	private double x;
 	private double y;
-	private T data;
 
-
-	public Point2D( final double x, final double y, final T data ) {
-		this.x = x;
-		this.y = y;
-		this.data = data;
+	/**
+	 * Creates the point (0,0).
+	 */
+	public Point2D() {
+		this( 0, 0 );
 	}
 
+	/**
+	 *
+	 * @param x
+	 * @param y
+	 */
+	public Point2D( final double x, final double y ) {
+		this.x = x;
+		this.y = y;
+	}
+
+	/**
+	 * @param p
+	 */
+	public Point2D( final Point2D p ) {
+		this( p.getX(), p.getY() );
+	}
 
 	/**
 	 * @return the x
@@ -52,17 +67,44 @@ public class Point2D< T > {
 	}
 
 	/**
-	 * @return the data
+	 * Rotates this point around a given center.
+	 *
+	 * @param center
+	 *            the center-point of the rotation.
+	 * @param angle
+	 *            rotational angle in radiant.
 	 */
-	public T getData() {
-		return data;
+	public void rotate( final Point2D center, final double angle ) {
+		// Translate center to origin
+		double x = this.x - center.x;
+		double y = this.y - center.y;
+
+		// Rotate around origin
+		x = x * Math.cos( angle ) - y * Math.sin( angle );
+		y = x * Math.sin( angle ) + y * Math.cos( angle );
+
+		// Translate back
+		this.x = x + center.x;
+		this.y = y + center.y;
 	}
 
 	/**
-	 * @param data
-	 *            the data to set
+	 * @param d
 	 */
-	public void setData( final T data ) {
-		this.data = data;
+	public void add( final Point2D p ) {
+		this.x += p.x;
+		this.y += p.y;
+	}
+
+	/**
+	 * @param d
+	 */
+	public void multiply( final double d ) {
+		this.x *= d;
+		this.y *= d;
+	}
+
+	public static double distance( final Point2D p1, final Point2D p2 ) {
+		return Math.sqrt( ( p1.x - p2.x ) * ( p1.x - p2.x ) + ( p1.y - p2.y ) * ( p1.y - p2.y ) );
 	}
 }
