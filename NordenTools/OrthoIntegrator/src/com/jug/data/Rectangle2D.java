@@ -27,7 +27,7 @@ public class Rectangle2D {
 	 * @param k
 	 * @param l
 	 */
-	public Rectangle2D( final int x, final int y, final int w, final int h ) {
+	public Rectangle2D( final double x, final double y, final double w, final double h ) {
 		this.setX( x );
 		this.setY( y );
 		this.setWidth( w );

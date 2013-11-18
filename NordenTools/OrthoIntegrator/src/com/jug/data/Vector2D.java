@@ -79,11 +79,11 @@ public class Vector2D extends Point2D {
 
 	/**
 	 * A.dot(B) = ||A|| * ||B|| * cos(phi)
-	 * 
+	 *
 	 * @param v
 	 * @return dot-product of this and given vector v.
 	 */
-	private double dot( final Vector2D v ) {
+	public double dot( final Vector2D v ) {
 		return getX() * v.getX() + getY() * v.getY();
 	}
 }

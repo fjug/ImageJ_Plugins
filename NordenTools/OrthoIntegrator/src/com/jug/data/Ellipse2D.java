@@ -106,6 +106,8 @@ public class Ellipse2D {
 	 *         ellipse.
 	 */
 	public Rectangle2D getBoundingBox() {
+		if ( a == 0 || b == 0 ) { return new Rectangle2D( center.getX(), center.getY(), 0, 0 ); }
+
 		final Rectangle2D ret = new Rectangle2D();
 
 		// Equations describing rotated ellipse:
@@ -165,7 +167,7 @@ public class Ellipse2D {
 		return false;
 	}
 
-	public void scaleToHostFractionOfPoints( final PointCloud2D points, final double fractionInside ) {
+	public void scaleToHostFractionOfPoints( final PixelCloud2D points, final double fractionInside ) {
 		if ( Double.isInfinite( a ) || Double.isInfinite( b ) ) return;
 		if ( Double.isNaN( a ) || Double.isNaN( b ) ) return;
 		if ( a == 0 || b == 0 ) return;
@@ -229,7 +231,7 @@ public class Ellipse2D {
 	 * @param points
 	 * @return
 	 */
-	public int countPointsInside( final PointCloud2D< ? > points ) {
+	public int countPointsInside( final PixelCloud2D< ? > points ) {
 		int ret = 0;
 		for ( final Point2D p : points.getPoints() ) {
 			if ( contains( p ) ) ret++;
@@ -245,10 +247,10 @@ public class Ellipse2D {
 		// Idea: rotate p around this.center about this.angle.
 		// Then use std-formula for non-rotated ellipses...
 		final Point2D prot = new Point2D( p );
-		prot.rotate( this.center, this.angle );
+		prot.rotate( this.center, -this.angle );
 
+		// ((x*x)/(a*a) + (y*y)/(b*b)) <= 1;
 		final double distance = Math.pow( ( prot.getX() - this.center.getX() ), 2 ) / ( a * a ) + Math.pow( ( prot.getY() - this.center.getY() ), 2 ) / ( b * b );
-
 		return distance <= 1.0;
 	}
 }

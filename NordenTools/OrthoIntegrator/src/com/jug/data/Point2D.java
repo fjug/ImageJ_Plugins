@@ -76,16 +76,16 @@ public class Point2D {
 	 */
 	public void rotate( final Point2D center, final double angle ) {
 		// Translate center to origin
-		double x = this.x - center.x;
-		double y = this.y - center.y;
+		final double x = this.x - center.x;
+		final double y = this.y - center.y;
 
 		// Rotate around origin
-		x = x * Math.cos( angle ) - y * Math.sin( angle );
-		y = x * Math.sin( angle ) + y * Math.cos( angle );
+		final double xrot = x * Math.cos( angle ) - y * Math.sin( angle );
+		final double yrot = x * Math.sin( angle ) + y * Math.cos( angle );
 
 		// Translate back
-		this.x = x + center.x;
-		this.y = y + center.y;
+		this.x = xrot + center.x;
+		this.y = yrot + center.y;
 	}
 
 	/**

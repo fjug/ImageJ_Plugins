@@ -18,6 +18,14 @@ public class Pixel2D< T > extends Point2D {
 	}
 
 	/**
+	 * @param p
+	 */
+	public Pixel2D( final Pixel2D< T > p ) {
+		super( p );
+		this.data = p.data;
+	}
+
+	/**
 	 * @return the data
 	 */
 	public T getData() {

@@ -46,7 +46,7 @@ public class OrthoSlicerGui extends JPanel implements ActionListener {
 	 */
 	@Override
 	public void actionPerformed( final ActionEvent e ) {
-		slicer.projectToLine( true );
+		slicer.projectConcentrationToLine( true );
 	}
 
 }

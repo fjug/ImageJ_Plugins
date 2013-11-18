@@ -93,13 +93,21 @@ public class PointCloud1D {
 		for ( int i = 0; i < points1.length; i++ ) {
 			cov[ 0 ][ 0 ] += ( points1[ i ] - e1 ) * ( points1[ i ] - e1 );
 			cov[ 0 ][ 1 ] += ( points1[ i ] - e1 ) * ( points2[ i ] - e2 );
-			cov[ 1 ][ 0 ] += ( points2[ i ] - e2 ) * ( points1[ i ] - e2 );
+			cov[ 1 ][ 0 ] += ( points2[ i ] - e2 ) * ( points1[ i ] - e1 );
 			cov[ 1 ][ 1 ] += ( points2[ i ] - e2 ) * ( points2[ i ] - e2 );
 		}
-		cov[ 0 ][ 0 ] /= points1.length;
-		cov[ 0 ][ 1 ] /= points1.length;
-		cov[ 1 ][ 0 ] /= points1.length;
-		cov[ 1 ][ 1 ] /= points1.length;
+		cov[ 0 ][ 0 ] /= points1.length - 1;
+		cov[ 0 ][ 1 ] /= points1.length - 1;
+		cov[ 1 ][ 0 ] /= points1.length - 1;
+		cov[ 1 ][ 1 ] /= points1.length - 1;
+
+//		final double[][] forCov = new double[ points1.length ][ 2 ];
+//		for ( int i = 0; i < points1.length; i++ ) {
+//			forCov[ i ][ 0 ] = points1[ i ];
+//			forCov[ i ][ 1 ] = points2[ i ];
+//		}
+//		final Covariance c = new Covariance( forCov );
+//		final double[][] cov2 = c.getCovarianceMatrix().getData();
 
 		return new Matrix( cov );
 	}

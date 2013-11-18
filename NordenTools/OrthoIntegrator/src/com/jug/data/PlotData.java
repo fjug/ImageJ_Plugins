@@ -53,7 +53,11 @@ public class PlotData {
 		final int x2 = ( int ) Math.round( Math.ceil( x ) );
 		final double fraq = x - x1;
 		data[ x1 ] += ( 1 - fraq ) * y;
-		data[ x2 ] += fraq * y;
+		if ( x2 < data.length ) {
+			data[ x2 ] += fraq * y;
+		} else {
+			data[ x1 ] += fraq * y;
+		}
 	}
 
 	/**
@@ -81,5 +85,24 @@ public class PlotData {
 			IJ.error( "Could not write to file '" + file.getAbsolutePath() + "'!" );
 		}
 
+	}
+
+	/**
+	 * Gets the y-value for a given x. If necessary this method would
+	 * interpolate linear between the two closes existing x-values.
+	 *
+	 * @param x
+	 * @return y-value for given x, or linear interpolation between two closest
+	 *         existing x-values. If given x is out of bounds we return 0.0.
+	 */
+	public double getValueAt( final double x ) {
+		final int x1 = ( int ) x;
+		final int x2 = ( int ) ( x + 1 );
+		final double f1 = x - x1;
+		if ( x1 >= 0 && x2 < data.length ) {
+			return data[ x1 ] * f1 + data[ x2 ] * ( 1 - f1 );
+		} else {
+			return 0.0;
+		}
 	}
 }

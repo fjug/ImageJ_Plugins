@@ -11,7 +11,7 @@ import com.jug.OrthoSlicer;
 /**
  * @author jug
  */
-public class ConcentrationAlongLine_ implements PlugIn {
+public class SectionAreaAlongLine_ implements PlugIn {
 
 	/**
 	 * @see ij.plugin.PlugIn#run(java.lang.String)
@@ -32,7 +32,7 @@ public class ConcentrationAlongLine_ implements PlugIn {
 			return;
 		}
 
-		main.projectConcentrationToLine( true );
+		main.projectSectionAreaToLine( true );
 	}
 
 }
