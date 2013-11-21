@@ -182,4 +182,25 @@ public class PixelCloud2D< T > {
 		}
 		return ret;
 	}
+
+	/**
+	 * Currently this needs linear running time (in the size of the cloud)! :(
+	 * 
+	 * @param p
+	 *            Point2D
+	 * @return returns the point from the cloud that is closest to p. (Null if
+	 *         clouds does not contain any points!)
+	 */
+	public Point2D getClosestPoint( final Point2D p ) {
+		double minDist = Double.MAX_VALUE;
+		Point2D ret = null;
+
+		for ( final Point2D candidate : points ) {
+			if ( Point2D.distanceSq( p, candidate ) < minDist ) {
+				minDist = Point2D.distanceSq( p, candidate );
+				ret = candidate;
+			}
+		}
+		return ret;
+	}
 }

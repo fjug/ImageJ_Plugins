@@ -107,4 +107,13 @@ public class Point2D {
 	public static double distance( final Point2D p1, final Point2D p2 ) {
 		return Math.sqrt( ( p1.x - p2.x ) * ( p1.x - p2.x ) + ( p1.y - p2.y ) * ( p1.y - p2.y ) );
 	}
+
+	/**
+	 * @param p
+	 * @param candidate
+	 * @return
+	 */
+	public static double distanceSq( final Point2D p1, final Point2D p2 ) {
+		return ( p1.x - p2.x ) * ( p1.x - p2.x ) + ( p1.y - p2.y ) * ( p1.y - p2.y );
+	}
 }

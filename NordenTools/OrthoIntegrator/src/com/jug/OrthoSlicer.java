@@ -85,7 +85,8 @@ public class OrthoSlicer {
 
 		if ( temp == null ) {
 			temp = new ImageJ();
-			IJ.open( "/Users/jug/MPI/ProjectNorden/FirstSegmentation3D_wholeStack_NordenCrop.tif" );
+//			IJ.open( "/Users/jug/MPI/ProjectNorden/FirstSegmentation_crop.tif" );
+			IJ.open( "/Users/jug/MPI/ProjectNorden/FirstSegmentation_crop_hull_4.0.tif" );
 		}
 
 		new OrthoSlicer();
@@ -95,7 +96,8 @@ public class OrthoSlicer {
 		final Line lineRoi = new Line( 0, main.imgPlus.getHeight(), main.imgPlus.getWidth(), 0 );
 		main.imgPlus.setRoi( lineRoi, true );
 
-		main.askUserForShapeExportDetails();
+//		main.askUserForShapeExportDetails();
+		main.projectConcentrationToLine( true );
 	}
 
 	/**
@@ -516,7 +518,13 @@ public class OrthoSlicer {
 		double pixel_value;
 		final double voxel_depth = this.imgPlus.getCalibration().getZ( 1.0 );
 		while ( cursor.hasNext() ) {
-			pixel_value = cursor.next().get();
+			pixel_value = 0.0;
+			try {
+				pixel_value = cursor.next().get();
+			} catch ( final ClassCastException e) {
+				e.printStackTrace();
+				IJ.error( "ClassCastException", "Please make source image 16bit!" );
+			}
 			final double xpos = cursor.getIntPosition( 0 ) - line.x1;
 			final double ypos = cursor.getIntPosition( 1 ) - line.y1;
 //			final int zpos = cursor.getIntPosition( 2 );
