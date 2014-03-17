@@ -23,6 +23,11 @@
 			<artifactId>ij</artifactId>
 			<version>${imagej1.version}</version>
 		</dependency>
+		<dependency>
+			<groupId>io.scif</groupId>
+			<artifactId>scifio</artifactId>
+			<version>0.8.2</version>
+		</dependency>
 	</dependencies>
 
 	<build>
