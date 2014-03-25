@@ -68,6 +68,17 @@
 			<artifactId>bio-formats</artifactId>
 			<version>4.4.7</version>
 		</dependency>
+		<dependency>
+            <groupId>de.erichseifert.vectorgraphics2d</groupId>
+            <artifactId>VectorGraphics2D</artifactId>
+            <version>0.9.1</version>
+        </dependency>
+
+        <dependency>
+            <groupId>de.erichseifert.gral</groupId>
+            <artifactId>gral-core</artifactId>
+            <version>0.10</version>
+        </dependency>
 	</dependencies>
 
 	<build>
@@ -137,6 +148,10 @@
 				<enabled>false</enabled>
 			</releases>
 		</repository>
+		<repository>
+            <id>erichseifert.de</id>
+            <url>http://mvn.erichseifert.de/maven2</url>
+        </repository>
 	</repositories>
 
 	<!-- <scm>

@@ -58,6 +58,7 @@ import view.component.IddeaComponent;
 
 import com.jug.fkt.Function1D;
 import com.jug.fkt.FunctionComposer;
+import com.jug.fkt.GRALComposer;
 import com.jug.imglib2.viewer.Viewer2DCanvas;
 import com.jug.segmentation.SegmentationMagic;
 import com.jug.util.converter.RealDoubleNormalizeConverter;
@@ -104,10 +105,10 @@ public class ParaMaxFlowPanel extends JPanel implements ActionListener, ChangeLi
 	private long currSeg = -1;
 	private long numSols = -1;
 
-	private Plot2DPanel costPlots;
+	private GRALPanel costPlots;
 
-	private FunctionComposer funcComposerUnaries;
-	private FunctionComposer funcComposerPairwiseEdge;
+	private GRALComposer funcComposerUnaries;
+	private GRALComposer funcComposerPairwiseEdge;
 
 	/**
 	 * @param imgPlus
@@ -208,7 +209,9 @@ public class ParaMaxFlowPanel extends JPanel implements ActionListener, ChangeLi
 		// *** COST PANEL
 		// ****************************************************************************************
 		final JPanel tabCosts = new JPanel( new BorderLayout() );
-		costPlots = new Plot2DPanel();
+		//costPlots = new Plot2DPanel();
+		costPlots = new GRALPanel();
+		costPlots.setFixedBounds( 1, 0.0, 1.0 );
 		updateCostPlots();
 		costPlots.setPreferredSize( new Dimension( 500, 500 ) );
 		tabCosts.add( costPlots, BorderLayout.CENTER );
@@ -332,7 +335,7 @@ public class ParaMaxFlowPanel extends JPanel implements ActionListener, ChangeLi
 		costPlots.addLinePlot( "Pairwise costs (Y)", new Color( 200, 64, 64 ), xArray, costPairwiseY );
 		costPlots.addLinePlot( "Pairwise costs (Z)", new Color( 200, 64, 64 ), xArray, costPairwiseZ );
 
-//		costPlots.setFixedBounds( 1, 0.0, 1.0 );
+
 	}
 
 	/**
@@ -433,7 +436,7 @@ public class ParaMaxFlowPanel extends JPanel implements ActionListener, ChangeLi
 		} else
 		if ( e.getSource().equals( bSetUnaries ) ) {
 			if ( funcComposerUnaries == null ) {
-				funcComposerUnaries = new FunctionComposer( SegmentationMagic.getFktUnary() );
+				funcComposerUnaries = new GRALComposer( SegmentationMagic.getFktUnary() );
 			}
 			final Function1D< Double > newFkt = funcComposerUnaries.open();
 			if ( newFkt != null ) {
@@ -453,7 +456,7 @@ public class ParaMaxFlowPanel extends JPanel implements ActionListener, ChangeLi
 		} else
 		if ( e.getSource().equals( bSetPairwiseEdge ) ) {
 			if ( funcComposerPairwiseEdge == null ) {
-				funcComposerPairwiseEdge = new FunctionComposer( SegmentationMagic.getFktPairwiseX() );
+				funcComposerPairwiseEdge = new GRALComposer( SegmentationMagic.getFktPairwiseX() );
 			}
 			final Function1D< Double > newFkt = funcComposerPairwiseEdge.open();
 			if ( newFkt != null ) {
