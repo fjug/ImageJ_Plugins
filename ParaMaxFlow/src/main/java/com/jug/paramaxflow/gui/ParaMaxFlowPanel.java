@@ -7,6 +7,7 @@ import ij.IJ;
 import ij.ImageJ;
 import ij.ImagePlus;
 import ij.WindowManager;
+import ij.io.Opener;
 
 import java.awt.BorderLayout;
 import java.awt.Color;
@@ -48,9 +49,12 @@ import net.imglib2.img.ImagePlusAdapter;
 import net.imglib2.img.Img;
 import net.imglib2.type.numeric.integer.LongType;
 import net.imglib2.type.numeric.real.DoubleType;
+import net.imglib2.type.numeric.real.FloatType;
 import net.imglib2.view.Views;
 
 import org.math.plot.Plot2DPanel;
+
+import view.component.IddeaComponent;
 
 import com.jug.fkt.Function1D;
 import com.jug.fkt.FunctionComposer;
@@ -63,7 +67,7 @@ import com.jug.util.converter.RealDoubleNormalizeConverter;
  */
 public class ParaMaxFlowPanel extends JPanel implements ActionListener, ChangeListener {
 
-	private static final String DEFAULT_PATH = "/Users/jug/Dropbox/WorkingData/Repositories/GIT/ImageJ_PlugIns/ParaMaxFlow/src/main/resources/";
+	private static final String DEFAULT_PATH = "/Users/moon/Projects/git-projects/fjug/ImageJ_PlugIns/ParaMaxFlow/src/main/resources/";
 
 	private static ParaMaxFlowPanel main;
 	private static JFrame guiFrame;
@@ -72,7 +76,8 @@ public class ParaMaxFlowPanel extends JPanel implements ActionListener, ChangeLi
 
 	private JTabbedPane tabsViews;
 
-	private final Viewer2DCanvas viewerCanvas;
+	//private final Viewer2DCanvas viewerCanvas;
+	private final IddeaComponent viewerCanvas;
 
 	private JButton bLoadCostFunctions;
 	private JButton bSaveCostFunctions;
@@ -122,7 +127,16 @@ public class ParaMaxFlowPanel extends JPanel implements ActionListener, ChangeLi
 		this.imgSumLong = null;
 		this.imgSegmentation = null;
 
-		this.viewerCanvas = new Viewer2DCanvas( imgPlus.getWidth(), imgPlus.getHeight() );
+		//this.viewerCanvas = new Viewer2DCanvas( imgPlus.getWidth(), imgPlus.getHeight() );
+
+        // wrap it into an ImgLib image (no copying)
+        //final Img<DoubleType> image = ImagePlusAdapter.wrap(imgPlus);
+		
+		this.viewerCanvas = new IddeaComponent(imgPlus, Views.interval( imgNorm, imgNorm ));
+		this.viewerCanvas.setToolBarLocation(BorderLayout.WEST);
+		this.viewerCanvas.setToolBarVisible(true);
+
+		this.viewerCanvas.setPreferredSize(new Dimension( imgPlus.getWidth(), imgPlus.getHeight() ));
 
 		buildGui();
 
@@ -135,7 +149,7 @@ public class ParaMaxFlowPanel extends JPanel implements ActionListener, ChangeLi
 		// ****************************************************************************************
 		// *** IMAGE VIEWER
 		// ****************************************************************************************
-		this.viewerCanvas.setDoubleTypeScreenImage( Views.interval( imgNorm, imgNorm ) );
+		//this.viewerCanvas.setDoubleTypeScreenImage( Views.interval( imgNorm, imgNorm ) );
 		final JScrollPane scrollPane = new JScrollPane( viewerCanvas );
 
 		final JPanel pControlsSeg = new JPanel();
@@ -495,7 +509,9 @@ public class ParaMaxFlowPanel extends JPanel implements ActionListener, ChangeLi
 
 		if ( temp == null ) {
 			temp = new ImageJ();
-			IJ.open( "/Users/jug/Desktop/trickyAreas/area1_preprocessed.tif" );
+			IJ.open( "/Users/moon/Documents/clown.tif" );
+//			IJ.open( "/Users/moon/Pictures/spim/spim-0.tif" );
+//			IJ.open( "/Users/jug/Desktop/trickyAreas/area1_preprocessed.tif" );
 //			IJ.open( "/Users/jug/Desktop/trickyAreas/clown.tif" );
 		}
 
