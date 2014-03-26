@@ -63,6 +63,8 @@ import com.jug.imglib2.viewer.Viewer2DCanvas;
 import com.jug.segmentation.SegmentationMagic;
 import com.jug.util.converter.RealDoubleNormalizeConverter;
 
+import controller.action.HistogramToolAction;
+
 /**
  * @author jug
  */
@@ -85,6 +87,7 @@ public class ParaMaxFlowPanel extends JPanel implements ActionListener, ChangeLi
 	private JButton bSetUnaries;
 	private JButton bSetPairwiseIsing;
 	private JButton bSetPairwiseEdge;
+	private JButton bHistogram;
 
 	private JButton bLoadClassifier;
 	private JToggleButton bUseClassifier;
@@ -179,6 +182,9 @@ public class ParaMaxFlowPanel extends JPanel implements ActionListener, ChangeLi
 		bSetPairwiseEdge.addActionListener( this );
 		bCompute = new JButton( "GO FOR IT" );
 		bCompute.addActionListener( this );
+		
+		bHistogram = new JButton("Histogram");
+		bHistogram.addActionListener( new HistogramToolAction(viewerCanvas.getCurrentInteractiveViewer2D()) );
 
 		bLoadClassifier = new JButton( "load class." );
 		bLoadClassifier.addActionListener( this );
@@ -233,6 +239,7 @@ public class ParaMaxFlowPanel extends JPanel implements ActionListener, ChangeLi
 		pControlsSeg.add( bUseClassifier );
 		pControlsSeg.add( Box.createHorizontalGlue() );
 		pControlsSeg.add( bCompute );
+		pControlsSeg.add( bHistogram );
 
 		pControlsView.add( bShowOrig );
 		pControlsView.add( Box.createHorizontalGlue() );
