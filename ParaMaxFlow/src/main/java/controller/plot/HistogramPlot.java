@@ -1,9 +1,17 @@
 package controller.plot;
 
-import java.awt.*;
+import java.awt.BasicStroke;
+import java.awt.BorderLayout;
+import java.awt.Color;
+import java.awt.Dimension;
 import java.util.ArrayList;
 import java.util.Collections;
 
+import javax.swing.JFrame;
+import javax.swing.JPanel;
+
+import model.util.DoubleArrayList;
+import model.util.LongArrayList;
 import de.erichseifert.gral.data.DataSeries;
 import de.erichseifert.gral.data.DataSource;
 import de.erichseifert.gral.data.DataTable;
@@ -28,270 +36,252 @@ import de.erichseifert.gral.util.GraphicsUtils;
 import de.erichseifert.gral.util.Insets2D;
 import de.erichseifert.gral.util.Orientation;
 
-import javax.swing.*;
-
-import model.util.DoubleArrayList;
-import model.util.LongArrayList;
-
 /**
  * Draw HistogramPlot Panel with Foreground list and Background list
- *
+ * 
  * @version 0.1beta
  * @since 3/25/14 1:59 PM
  * @author HongKee Moon
  */
-public class HistogramPlot extends JPanel
-{
-    /** First corporate color used for foreground color */
-    protected static final Color COLOR1 = new Color(200,  80,  75);
-    /** Second corporate color used for background color */
-    protected static final Color COLOR2 = new Color(55 , 170, 200);
+public class HistogramPlot extends JPanel {
 
-    /** Maximum Sample Size */
-    static final int SAMPLE = 100;
+	/** First corporate color used for foreground color */
+	protected static final Color COLOR1 = new Color( 200, 80, 75 );
+	/** Second corporate color used for background color */
+	protected static final Color COLOR2 = new Color( 55, 170, 200 );
 
-    XYPlot foreground = null;
-    XYPlot background = null;
+	/** Maximum Sample Size */
+	static final int SAMPLE = 100;
 
-    /**
-     * Performs basic initialization of HistogramPlot for LongArrayList
-     */
-    public HistogramPlot(LongArrayList foregroundList, LongArrayList backgroundList) {
-        super(new BorderLayout());
-        setPreferredSize(new Dimension(800, 600));
-        setBackground(Color.WHITE);
+	XYPlot foreground = null;
+	XYPlot background = null;
 
-        if(foregroundList.size() > 0)
-            foreground = createXYPlot("Foreground", foregroundList, COLOR1, Long.class);
+	/**
+	 * Performs basic initialization of HistogramPlot for LongArrayList
+	 */
+	public HistogramPlot( final LongArrayList foregroundList, final LongArrayList backgroundList ) {
+		super( new BorderLayout() );
+		setPreferredSize( new Dimension( 800, 600 ) );
+		setBackground( Color.WHITE );
 
-        if(backgroundList.size() > 0)
-            background = createXYPlot("Background", backgroundList, COLOR2, Long.class);
+		if ( foregroundList.size() > 0 )
+			foreground = createXYPlot( "Foreground", foregroundList, COLOR1, Long.class );
 
-        DrawableContainer plots = new DrawableContainer(new TableLayout(1));
-        if(foreground != null) plots.add(foreground);
-        if(background != null) plots.add(background);
+		if ( backgroundList.size() > 0 )
+			background = createXYPlot( "Background", backgroundList, COLOR2, Long.class );
 
-        // Connect the two plots, i.e. user (mouse) actions affect both plots
-        //foreground.getNavigator().connect(background.getNavigator());
+		final DrawableContainer plots = new DrawableContainer( new TableLayout( 1 ) );
+		if ( foreground != null ) plots.add( foreground );
+		if ( background != null ) plots.add( background );
 
-        // Add plot to Swing component
-        InteractivePanel panel = new InteractivePanel(plots);
-        add(panel);
-        showInFrame();
-    }
+		// Connect the two plots, i.e. user (mouse) actions affect both plots
+		//foreground.getNavigator().connect(background.getNavigator());
 
-    /**
-     * Performs basic initialization of HistogramPlot for DoubleArrayList
-     */
-    public HistogramPlot(DoubleArrayList foregroundList, DoubleArrayList backgroundList) {
-        super(new BorderLayout());
-        setPreferredSize(new Dimension(800, 600));
-        setBackground(Color.WHITE);
+		// Add plot to Swing component
+		final InteractivePanel panel = new InteractivePanel( plots );
+		add( panel );
+		showInFrame();
+	}
 
-        if(foregroundList.size() > 0)
-            foreground = createXYPlot("Foreground", foregroundList, COLOR1, Double.class);
+	/**
+	 * Performs basic initialization of HistogramPlot for DoubleArrayList
+	 */
+	public HistogramPlot( final DoubleArrayList foregroundList, final DoubleArrayList backgroundList ) {
+		super( new BorderLayout() );
+		setPreferredSize( new Dimension( 800, 600 ) );
+		setBackground( Color.WHITE );
 
-        if(backgroundList.size() > 0)
-            background = createXYPlot("Background", backgroundList, COLOR2, Double.class);
+		if ( foregroundList.size() > 0 )
+			foreground = createXYPlot( "Foreground", foregroundList, COLOR1, Double.class );
 
-        DrawableContainer plots = new DrawableContainer(new TableLayout(1));
-        if(foreground != null) plots.add(foreground);
-        if(background != null) plots.add(background);
+		if ( backgroundList.size() > 0 )
+			background = createXYPlot( "Background", backgroundList, COLOR2, Double.class );
 
-        // Connect the two plots, i.e. user (mouse) actions affect both plots
-        //foreground.getNavigator().connect(background.getNavigator());
+		final DrawableContainer plots = new DrawableContainer( new TableLayout( 1 ) );
+		if ( foreground != null ) plots.add( foreground );
+		if ( background != null ) plots.add( background );
 
-        // Add plot to Swing component
-        InteractivePanel panel = new InteractivePanel(plots);
-        add(panel);
-        showInFrame();
-    }
+		// Connect the two plots, i.e. user (mouse) actions affect both plots
+		//foreground.getNavigator().connect(background.getNavigator());
 
-    /**
-     * Get a DataSource from Long type ArrayList
-     * @param list
-     * @return data
-     */
-    private DataSource getLongHistogramDataSource(ArrayList<Long> list)
-    {
-        // Create example data
-        Long max = Collections.max(list);
-        Long min = Collections.min(list);
-        int bin = max.intValue() - min.intValue() + 1;
-        Double gap = 1d;
+		// Add plot to Swing component
+		final InteractivePanel panel = new InteractivePanel( plots );
+		add( panel );
+		showInFrame();
+	}
 
-        DataTable data = new DataTable(Long.class);
+	/**
+	 * Get a DataSource from Long type ArrayList
+	 * 
+	 * @param list
+	 * @return data
+	 */
+	private DataSource getLongHistogramDataSource( final ArrayList< Long > list ) {
+		// Create example data
+		final Long max = Collections.max( list );
+		Long min = Collections.min( list );
+		int bin = max.intValue() - min.intValue() + 1;
+		Double gap = 1d;
 
-        System.out.println("Bin: " + bin + " SAMPLE:" + SAMPLE);
-        System.out.println("Max: " + max + " Min: " + min + " Gap:" + 1);
+		final DataTable data = new DataTable( Long.class );
 
-        if(bin > SAMPLE) {
-            bin = SAMPLE;
-            gap = (max.doubleValue() - min.doubleValue()) / bin;
-        }
+		System.out.println( "Bin: " + bin + " SAMPLE:" + SAMPLE );
+		System.out.println( "Max: " + max + " Min: " + min + " Gap:" + 1 );
 
-        Number[] number = null;
+		if ( bin > SAMPLE ) {
+			bin = SAMPLE;
+			gap = ( max.doubleValue() - min.doubleValue() ) / bin;
+		}
 
-        if(min != max)
-        {
-            number = new Number[bin + 1];
+		Number[] number = null;
 
-            for (int i = 0; i <= bin; i++)
-                number[i] = min + i * gap;
-        }
-        else
-        {
-            number = new Number[3];
-            min =  min - 1;
+		if ( min != max ) {
+			number = new Number[ bin + 1 ];
 
-            number[0] = min;
-            number[1] = min + 1;
-            number[2] = min + 2;
-        }
+			for ( int i = 0; i <= bin; i++ )
+				number[ i ] = min + i * gap;
+		} else {
+			number = new Number[ 3 ];
+			min = min - 1;
 
-        for (Long d : list)
-        {
-            data.add(d);
-        }
+			number[ 0 ] = min;
+			number[ 1 ] = min + 1;
+			number[ 2 ] = min + 2;
+		}
 
-        // Create histogram from data
-        Histogram1D histogram = new Histogram1D(data, Orientation.VERTICAL, number);
-        // Create a second dimension (x axis) for plotting
-        return new EnumeratedData(histogram, min, gap);
-    }
+		for ( final Long d : list ) {
+			data.add( d );
+		}
 
-    /**
-     * Get a DataSource for Double type ArrayList
-     * @param list
-     * @return data
-     */
-    private DataSource getDoubleHistogramDataSource(ArrayList<Double> list)
-    {
-        // Create example data
-        DataTable data = new DataTable(Double.class);
+		// Create histogram from data
+		final Histogram1D histogram = new Histogram1D( data, Orientation.VERTICAL, number );
+		// Create a second dimension (x axis) for plotting
+		return new EnumeratedData( histogram, min, gap );
+	}
 
-        Double max = Collections.max(list);
-        Double min = Collections.min(list);
-        Double gap = (max.doubleValue() - min.doubleValue()) / SAMPLE;
+	/**
+	 * Get a DataSource for Double type ArrayList
+	 * 
+	 * @param list
+	 * @return data
+	 */
+	private DataSource getDoubleHistogramDataSource( final ArrayList< Double > list ) {
+		// Create example data
+		final DataTable data = new DataTable( Double.class );
 
-        System.out.println("Bin: " + SAMPLE);
-        System.out.println("Max: " + max + " Min: " + min + " Gap:" + gap);
+		final Double max = Collections.max( list );
+		Double min = Collections.min( list );
+		final Double gap = ( max.doubleValue() - min.doubleValue() ) / SAMPLE;
 
-        Number[] number = null;
+		System.out.println( "Bin: " + SAMPLE );
+		System.out.println( "Max: " + max + " Min: " + min + " Gap:" + gap );
 
-        if(min != max)
-        {
-            number = new Number[SAMPLE + 1];
+		Number[] number = null;
 
-            for (int i = 0; i <= SAMPLE; i++)
-                number[i] = min + i * gap;
-        }
-        else
-        {
-            number = new Number[3];
-            min -= gap;
+		if ( min != max ) {
+			number = new Number[ SAMPLE + 1 ];
 
-            number[0] = min;
-            number[1] = min + gap;
-            number[2] = min + gap;
-        }
+			for ( int i = 0; i <= SAMPLE; i++ )
+				number[ i ] = min + i * gap;
+		} else {
+			number = new Number[ 3 ];
+			min -= gap;
 
-        for (Double d : list)
-        {
-            data.add(d);
-        }
+			number[ 0 ] = min;
+			number[ 1 ] = min + gap;
+			number[ 2 ] = min + gap;
+		}
 
-        // Create histogram from data
-        Histogram1D histogram = new Histogram1D(data, Orientation.VERTICAL, number);
-        // Create a second dimension (x axis) for plotting
-        return new EnumeratedData(histogram, min, gap);
-    }
+		for ( final Double d : list ) {
+			data.add( d );
+		}
 
-    /**
-     * creates a Plot for ctor()
-     * @param title
-     * @param list
-     * @param color
-     * @param clazz
-     * @return
-     */
-    private XYPlot createXYPlot(String title, ArrayList<?> list, Color color, Class clazz)
-    {
-        // Create example data
-        DataSource histogram2d = null;
+		// Create histogram from data
+		final Histogram1D histogram = new Histogram1D( data, Orientation.VERTICAL, number );
+		// Create a second dimension (x axis) for plotting
+		return new EnumeratedData( histogram, min, gap );
+	}
 
-        if(clazz == Long.class)
-        {
-            histogram2d = getLongHistogramDataSource((ArrayList<Long>)list);
-        }
-        else if(clazz == Double.class)
-        {
-            histogram2d = getDoubleHistogramDataSource((ArrayList<Double>)list);
-        }
+	/**
+	 * creates a Plot for ctor()
+	 * 
+	 * @param title
+	 * @param list
+	 * @param color
+	 * @param clazz
+	 * @return
+	 */
+	private XYPlot createXYPlot( final String title, final ArrayList< ? > list, final Color color, final Class clazz ) {
+		// Create example data
+		DataSource histogram2d = null;
 
-        DataSeries ds = new DataSeries("Data", histogram2d, 0, 1);
+		if ( clazz == Long.class ) {
+			histogram2d = getLongHistogramDataSource( ( ArrayList< Long > ) list );
+		} else if ( clazz == Double.class ) {
+			histogram2d = getDoubleHistogramDataSource( ( ArrayList< Double > ) list );
+		}
 
-        // Create new bar plot
-        XYPlot plot = new XYPlot(ds);
-        plot.getAxis(plot.AXIS_X).setAutoscaled(false);
-        plot.getAxis(plot.AXIS_Y).setAutoscaled(false);
+		final DataSeries ds = new DataSeries( "Data", histogram2d, 0, 1 );
 
-        // Format plot
-        plot.setInsets(new Insets2D.Double(20.0, 65.0, 50.0, 40.0));
-        plot.getTitle().setText(
-                String.format("%s (%d) pixels", title, list.size()));
+		// Create new bar plot
+		final XYPlot plot = new XYPlot( ds );
+		plot.getAxis( plot.AXIS_X ).setAutoscaled( false );
+		plot.getAxis( plot.AXIS_Y ).setAutoscaled( false );
 
-        final double KERNEL_VARIANCE = 3.0;
+		// Format plot
+		plot.setInsets( new Insets2D.Double( 20.0, 65.0, 50.0, 40.0 ) );
+		plot.getTitle().setText( String.format( "%s (%d) pixels", title, list.size() ) );
 
-        // Create a smoothed data series from a binomial (near-gaussian) convolution filter
-        Kernel kernelLowpass = KernelUtils.getBinomial(KERNEL_VARIANCE).normalize();
-        Filter dataLowpass = new Convolution(histogram2d, kernelLowpass, Filter.Mode.REPEAT, 1);
-        DataSeries dsLowpass = new DataSeries("Lowpass", dataLowpass, 0, 1);
-        plot.add(dsLowpass);
+		final double KERNEL_VARIANCE = 3.0;
 
-        formatLineArea(plot, ds, color);
-        formatFilledArea(plot, dsLowpass, GraphicsUtils.deriveDarker(color));
+		// Create a smoothed data series from a binomial (near-gaussian) convolution filter
+		final Kernel kernelLowpass = KernelUtils.getBinomial( KERNEL_VARIANCE ).normalize();
+		final Filter dataLowpass = new Convolution( histogram2d, kernelLowpass, Filter.Mode.REPEAT, 1 );
+		final DataSeries dsLowpass = new DataSeries( "Lowpass", dataLowpass, 0, 1 );
+		plot.add( dsLowpass );
 
-        return plot;
-    }
+		formatLineArea( plot, ds, color );
+		formatFilledArea( plot, dsLowpass, GraphicsUtils.deriveDarker( color ) );
 
+		return plot;
+	}
 
-    private static void formatFilledArea(XYPlot plot, DataSource data, Color color) {
-        plot.setPointRenderer(data, null);
+	private static void formatFilledArea( final XYPlot plot, final DataSource data, final Color color ) {
+		plot.setPointRenderer( data, null );
 
-        LineRenderer line = new DefaultLineRenderer2D();
-        line.setColor(color);
-        line.setGap(3.0);
-        line.setGapRounded(true);
-        plot.setLineRenderer(data, line);
+		final LineRenderer line = new DefaultLineRenderer2D();
+		line.setColor( color );
+		line.setGap( 3.0 );
+		line.setGapRounded( true );
+		plot.setLineRenderer( data, line );
 
-        AreaRenderer area = new DefaultAreaRenderer2D();
-        area.setColor(GraphicsUtils.deriveWithAlpha(color, 64));
-        plot.setAreaRenderer(data, area);
-    }
+		final AreaRenderer area = new DefaultAreaRenderer2D();
+		area.setColor( GraphicsUtils.deriveWithAlpha( color, 64 ) );
+		plot.setAreaRenderer( data, area );
+	}
 
-    private static void formatLineArea(XYPlot plot, DataSource data, Color color) {
-        PointRenderer point = new DefaultPointRenderer2D();
-        point.setColor(new Color(1f, 1f, 1f, 1f));
-        //point.setValueVisible(true);
+	private static void formatLineArea( final XYPlot plot, final DataSource data, final Color color ) {
+		final PointRenderer point = new DefaultPointRenderer2D();
+		point.setColor( new Color( 1f, 1f, 1f, 1f ) );
+		//point.setValueVisible(true);
 
-        plot.setPointRenderer(data, point);
+		plot.setPointRenderer( data, point );
 
-        plot.setLineRenderer(data, null);
+		plot.setLineRenderer( data, null );
 
-        LineAreaRenderer2D area = new LineAreaRenderer2D();
-        area.setGap(3.0);
-        area.setColor(color);
-        area.setStroke(new BasicStroke(5));
-        plot.setAreaRenderer(data, area);
-    }
+		final LineAreaRenderer2D area = new LineAreaRenderer2D();
+		area.setGap( 3.0 );
+		area.setColor( color );
+		area.setStroke( new BasicStroke( 5 ) );
+		plot.setAreaRenderer( data, area );
+	}
 
-    public JFrame showInFrame() {
-        JFrame frame = new JFrame("Histogram");
-        frame.getContentPane().add(this, BorderLayout.CENTER);
-        //frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-        frame.setSize(getPreferredSize());
-        frame.setVisible(true);
-        return frame;
-    }
+	public JFrame showInFrame() {
+		final JFrame frame = new JFrame( "Histogram" );
+		frame.getContentPane().add( this, BorderLayout.CENTER );
+		//frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+		frame.setSize( getPreferredSize() );
+		frame.setVisible( true );
+		return frame;
+	}
 }

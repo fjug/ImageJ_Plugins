@@ -11,7 +11,6 @@ import net.imglib2.type.numeric.RealType;
 import net.imglib2.view.IntervalView;
 import net.imglib2.view.Views;
 
-
 /**
  * @author jug
  */
@@ -33,6 +32,8 @@ public class ImglibUtil {
 	 *            - the type that will have max
 	 */
 	public static < T extends RealType< T > & NativeType< T > > void computeMinMax( final IntervalView< T > viewImg, final T min, final T max ) {
+		if ( viewImg == null ) { return; }
+
 		// create a cursor for the image (the order does not matter)
 		final Iterator< T > iterator = Views.iterable( viewImg ).iterator();
 
