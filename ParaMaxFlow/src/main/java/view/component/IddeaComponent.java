@@ -109,18 +109,32 @@ public class IddeaComponent extends JPanel {
 	}
 
 	public InteractiveDrawingView getInteractiveDrawingView( final IntervalView< DoubleType > viewImg ) {
-		final AffineTransform2D transform = new AffineTransform2D();
-
-		final DoubleType min = new DoubleType();
-		final DoubleType max = new DoubleType();
-		ImglibUtil.computeMinMax( viewImg, min, max );
-
-		final RealRandomAccessible< DoubleType > interpolated = Views.interpolate( Views.extendZero( viewImg ), new NearestNeighborInterpolatorFactory< DoubleType >() );
-		final RealARGBConverter< DoubleType > converter = new RealARGBConverter< DoubleType >( min.get(), max.get() );
-
-		currentInteractiveViewer2D = new InteractiveRealViewer2D< DoubleType >( ( int ) viewImg.max( 0 ), ( int ) viewImg.max( 1 ), interpolated, transform, converter );
-
-		return currentInteractiveViewer2D.getJHotDrawDisplay();
+    	if(viewImg != null)
+    	{
+	        final AffineTransform2D transform = new AffineTransform2D();
+	
+			final DoubleType min = new DoubleType();
+			final DoubleType max = new DoubleType();
+			ImglibUtil.computeMinMax( viewImg, min, max );
+	
+	        RealRandomAccessible< DoubleType > interpolated = Views.interpolate( Views.extendZero(viewImg), new NearestNeighborInterpolatorFactory<DoubleType>() );
+	        final RealARGBConverter< DoubleType > converter = new RealARGBConverter< DoubleType >( min.get(), max.get());
+	
+	        //final LUTConverter< T > converter = new LUTConverter< T >( min.getMinValue(), max.getMaxValue(), ColorTables.FIRE);
+	        currentInteractiveViewer2D = new InteractiveRealViewer2D<DoubleType>((int)viewImg.max(0), (int)viewImg.max(1), interpolated, transform, converter);
+    	}
+    	else
+    	{
+    		final AffineTransform2D transform = new AffineTransform2D();
+    		RealRandomAccessible< DoubleType > dummy = new DummyRealRandomAccessible();
+	        final RealARGBConverter< DoubleType > converter = new RealARGBConverter< DoubleType >( 0, 0);
+	
+	        //final LUTConverter< T > converter = new LUTConverter< T >( min.getMinValue(), max.getMaxValue(), ColorTables.FIRE);
+	        currentInteractiveViewer2D = new InteractiveRealViewer2D<DoubleType>(0, 0, dummy, transform, converter);
+    	}
+    	
+        
+        return currentInteractiveViewer2D.getJHotDrawDisplay();
 	}
 
 	/**
