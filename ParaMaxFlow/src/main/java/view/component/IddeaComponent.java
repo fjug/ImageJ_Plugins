@@ -128,7 +128,7 @@ public class IddeaComponent extends JPanel {
 			final RealRandomAccessible< DoubleType > dummy = new DummyRealRandomAccessible();
 			final RealARGBConverter< DoubleType > converter = new RealARGBConverter< DoubleType >( 0, 0 );
 
-			currentInteractiveViewer2D = new InteractiveRealViewer2D< DoubleType >( 0, 0, dummy, transform, converter );
+			currentInteractiveViewer2D = new InteractiveRealViewer2D< DoubleType >( 300, 200, dummy, transform, converter );
 		}
 
 		return currentInteractiveViewer2D.getJHotDrawDisplay();
