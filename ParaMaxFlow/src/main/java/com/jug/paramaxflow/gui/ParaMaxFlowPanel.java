@@ -44,6 +44,7 @@ import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.converter.Converters;
 import net.imglib2.img.ImagePlusAdapter;
 import net.imglib2.img.Img;
+import net.imglib2.img.display.imagej.ImageJFunctions;
 import net.imglib2.type.numeric.integer.LongType;
 import net.imglib2.type.numeric.real.DoubleType;
 import net.imglib2.view.Views;
@@ -84,6 +85,8 @@ public class ParaMaxFlowPanel extends JPanel implements ActionListener, ChangeLi
 
 	private JButton bLoadCostFunctions;
 	private JButton bSaveCostFunctions;
+
+	private JButton bExportSumImg;
 
 	private JButton bSetUnaries;
 	private JButton bSetPairwiseIsing;
@@ -200,6 +203,9 @@ public class ParaMaxFlowPanel extends JPanel implements ActionListener, ChangeLi
 		bUseClassifier.addActionListener( this );
 		bUseClassifier.setEnabled( false );
 
+		bExportSumImg = new JButton( "export sum-img" );
+		bExportSumImg.addActionListener( this );
+
 		// ****************************************************************************************
 		// *** COST PANEL
 		// ****************************************************************************************
@@ -228,6 +234,8 @@ public class ParaMaxFlowPanel extends JPanel implements ActionListener, ChangeLi
 		pUpperControls.add( Box.createHorizontalGlue() );
 		pUpperControls.add( bLoadClassifier );
 		pUpperControls.add( bUseClassifier );
+		pUpperControls.add( Box.createHorizontalGlue() );
+		pUpperControls.add( bExportSumImg );
 
 		pLowerControls.add( bSetUnaries );
 		pLowerControls.add( bHistogram );
@@ -448,6 +456,9 @@ public class ParaMaxFlowPanel extends JPanel implements ActionListener, ChangeLi
 			this.numSols = SegmentationMagic.getNumSolutions();
 			this.sliderSegmentation.setMaximum( ( int ) this.numSols );
 			this.sliderSegmentation.setValue( 0 );
+
+		} else if ( e.getSource().equals( bExportSumImg ) ) {
+			ImageJFunctions.show( this.imgSumLong );
 		}
 	}
 
@@ -477,6 +488,18 @@ public class ParaMaxFlowPanel extends JPanel implements ActionListener, ChangeLi
 		}
 	}
 
+	/**
+	 * @see javax.swing.event.ChangeListener#stateChanged(javax.swing.event.ChangeEvent)
+	 */
+	@Override
+	public void stateChanged( final ChangeEvent e ) {
+		if ( e.getSource().equals( sliderSegmentation ) ) {
+			currSeg = sliderSegmentation.getValue();
+			this.imgSegmentation = SegmentationMagic.returnSegmentation( imgSumLong, currSeg );
+			this.icSeg.setLongTypeScreenImage( imgSegmentation );
+		}
+	}
+
 	public static void main( final String[] args ) {
 		ImageJ temp = IJ.getInstance();
 
@@ -484,7 +507,8 @@ public class ParaMaxFlowPanel extends JPanel implements ActionListener, ChangeLi
 			temp = new ImageJ();
 			// IJ.open( "/Users/moon/Documents/clown.tif" );
 			// IJ.open( "/Users/moon/Pictures/spim/spim-0.tif" );
-			IJ.open( "/Users/jug/Desktop/clown.tif" );
+			// IJ.open( "/Users/jug/Desktop/clown.tif" );
+			IJ.open( "/Users/jug/Desktop/demo.tif" );
 		}
 
 		final ImagePlus imgPlus = WindowManager.getCurrentImage();
@@ -501,17 +525,5 @@ public class ParaMaxFlowPanel extends JPanel implements ActionListener, ChangeLi
 
 		guiFrame.add( main );
 		guiFrame.setVisible( true );
-	}
-
-	/**
-	 * @see javax.swing.event.ChangeListener#stateChanged(javax.swing.event.ChangeEvent)
-	 */
-	@Override
-	public void stateChanged( final ChangeEvent e ) {
-		if ( e.getSource().equals( sliderSegmentation ) ) {
-			currSeg = sliderSegmentation.getValue();
-			this.imgSegmentation = SegmentationMagic.returnSegmentation( imgSumLong, currSeg );
-			this.icSeg.setLongTypeScreenImage( imgSegmentation );
-		}
 	}
 }
