@@ -125,10 +125,15 @@ public class ParaMaxFlowPanel extends JPanel implements ActionListener, ChangeLi
 		this.imgSumLong = null;
 		this.imgSegmentation = null;
 
-		this.icOrig = new IddeaComponent( imgPlus, Views.interval( imgOrigNorm, imgOrigNorm ) );
-		this.icClass = new IddeaComponent();
-		this.icSumImg = new IddeaComponent();
-		this.icSeg = new IddeaComponent();
+		this.icOrig = new IddeaComponent( Views.interval( imgOrigNorm, imgOrigNorm ) );
+		// THIS WORKS
+		this.icClass = new IddeaComponent( Views.interval( imgOrigNorm, imgOrigNorm ) );
+		this.icSumImg = new IddeaComponent( Views.interval( imgOrigNorm, imgOrigNorm ) );
+		this.icSeg = new IddeaComponent( Views.interval( imgOrigNorm, imgOrigNorm ) );
+		// THIS SHOULD WORK
+//		this.icClass = new IddeaComponent();
+//		this.icSumImg = new IddeaComponent();
+//		this.icSeg = new IddeaComponent();
 
 		buildGui();
 
@@ -162,10 +167,10 @@ public class ParaMaxFlowPanel extends JPanel implements ActionListener, ChangeLi
 		// ****************************************************************************************
 		// *** TEXTs AND CONTROLS
 		// ****************************************************************************************
-		final JPanel pControlsSeg = new JPanel();
-		pControlsSeg.setLayout( new BoxLayout( pControlsSeg, BoxLayout.LINE_AXIS ) );
-		final JPanel pControlsView = new JPanel();
-		pControlsView.setLayout( new BoxLayout( pControlsView, BoxLayout.LINE_AXIS ) );
+		final JPanel pLowerControls = new JPanel();
+		pLowerControls.setLayout( new BoxLayout( pLowerControls, BoxLayout.LINE_AXIS ) );
+		final JPanel pUpperControls = new JPanel();
+		pUpperControls.setLayout( new BoxLayout( pUpperControls, BoxLayout.LINE_AXIS ) );
 
 		final JTextArea textIntro = new JTextArea( "" + "Thanks to Vladimir Kolmogorov for native parametric max-flow code.\n" + "Classification models can be generated using the 'Trainable WEKA Segmentation'-plugin.\n" + "Bugs, comments, feedback? jug@mpi-cbg.de" );
 		textIntro.setBackground( new JButton().getBackground() );
@@ -210,7 +215,7 @@ public class ParaMaxFlowPanel extends JPanel implements ActionListener, ChangeLi
 		tabsViews.addTab( "classif.", icClass );
 		tabsViews.addTab( "sum img", icSumImg );
 		final JPanel help = new JPanel( new BorderLayout() );
-		help.add( icSeg, BorderLayout.NORTH );
+		help.add( icSeg, BorderLayout.CENTER );
 		help.add( sliderSegmentation, BorderLayout.SOUTH );
 		tabsViews.addTab( "segm. hyp.", help );
 		tabsViews.addTab( "cost fkts", tabCosts );
@@ -218,22 +223,22 @@ public class ParaMaxFlowPanel extends JPanel implements ActionListener, ChangeLi
 		add( textIntro, BorderLayout.NORTH );
 		add( tabsViews, BorderLayout.CENTER );
 
-		pControlsSeg.add( bLoadCostFunctions );
-		pControlsSeg.add( bSaveCostFunctions );
-		pControlsSeg.add( Box.createHorizontalGlue() );
-		pControlsSeg.add( bSetUnaries );
-		pControlsSeg.add( bSetPairwiseIsing );
-		pControlsSeg.add( bSetPairwiseEdge );
-		pControlsSeg.add( Box.createHorizontalGlue() );
-		pControlsSeg.add( bLoadClassifier );
-		pControlsSeg.add( bUseClassifier );
-		pControlsSeg.add( Box.createHorizontalGlue() );
-		pControlsSeg.add( bCompute );
-		pControlsSeg.add( bHistogram );
+		pUpperControls.add( bLoadCostFunctions );
+		pUpperControls.add( bSaveCostFunctions );
+		pUpperControls.add( Box.createHorizontalGlue() );
+		pUpperControls.add( bLoadClassifier );
+		pUpperControls.add( bUseClassifier );
+
+		pLowerControls.add( bSetUnaries );
+		pLowerControls.add( bHistogram );
+		pLowerControls.add( bSetPairwiseIsing );
+		pLowerControls.add( bSetPairwiseEdge );
+		pLowerControls.add( Box.createHorizontalGlue() );
+		pLowerControls.add( bCompute );
 
 		final JPanel controls = new JPanel( new GridLayout( 2, 1 ) );
-		controls.add( pControlsView );
-		controls.add( pControlsSeg );
+		controls.add( pUpperControls );
+		controls.add( pLowerControls );
 		add( controls, BorderLayout.SOUTH );
 
 		// - - - - - - - - - - - - - - - - - - - - - - - -
@@ -348,26 +353,14 @@ public class ParaMaxFlowPanel extends JPanel implements ActionListener, ChangeLi
 	@Override
 	public void actionPerformed( final ActionEvent e ) {
 
-//		if ( e.getSource().equals( bShowClassification ) ) {
-//			this.icClass.setDoubleTypeScreenImage( Views.interval( getImgClassified(), getImgClassified() ) );
-//			this.tabsViews.setSelectedComponent( icClass );
-//
-//		} else if ( e.getSource().equals( bShowSumImg ) ) {
-//			this.icSumImg.setLongTypeScreenImage( Views.interval( imgSumLong, imgSumLong ) );
-//			this.tabsViews.setSelectedComponent( icSumImg );
-//
-//		} else if ( e.getSource().equals( bShowSeg ) ) {
-//			this.imgSegmentation = SegmentationMagic.returnSegmentation( imgSumLong, currSeg );
-//			this.icSeg.setLongTypeScreenImage( Views.interval( imgSegmentation, imgSegmentation ) );
-//			this.tabsViews.setSelectedComponent( icSeg );
-//
-//		} else 
 		if ( e.getSource().equals( bLoadClassifier ) ) {
 			this.imgClassified = null;
 			loadClassifierButtonPushed();
 
 		} else if ( e.getSource().equals( bUseClassifier ) ) {
 			getImgClassified();
+//			SegmentationMagic.showLastClassified();
+			this.icClass.setDoubleTypeScreenImage( this.imgClassified );
 
 		} else if ( e.getSource().equals( bLoadCostFunctions ) ) {
 			final JFileChooser fc = new JFileChooser( DEFAULT_PATH );
@@ -451,8 +444,10 @@ public class ParaMaxFlowPanel extends JPanel implements ActionListener, ChangeLi
 			} else {
 				this.imgSumLong = SegmentationMagic.returnParamaxflowRegionSums( imgOrigNorm );
 			}
+			this.icSumImg.setLongTypeScreenImage( this.imgSumLong );
 			this.numSols = SegmentationMagic.getNumSolutions();
 			this.sliderSegmentation.setMaximum( ( int ) this.numSols );
+			this.sliderSegmentation.setValue( 0 );
 		}
 	}
 
@@ -462,7 +457,6 @@ public class ParaMaxFlowPanel extends JPanel implements ActionListener, ChangeLi
 	private RandomAccessibleInterval< DoubleType > getImgClassified() {
 		if ( this.imgClassified == null ) {
 			this.imgClassified = SegmentationMagic.returnClassification( this.imgOrig );
-			SegmentationMagic.showLastClassified();
 		}
 		return this.imgClassified;
 	}
@@ -517,7 +511,7 @@ public class ParaMaxFlowPanel extends JPanel implements ActionListener, ChangeLi
 		if ( e.getSource().equals( sliderSegmentation ) ) {
 			currSeg = sliderSegmentation.getValue();
 			this.imgSegmentation = SegmentationMagic.returnSegmentation( imgSumLong, currSeg );
-			this.icSeg.setLongTypeScreenImage( Views.interval( imgSegmentation, imgSegmentation ) );
+			this.icSeg.setLongTypeScreenImage( imgSegmentation );
 		}
 	}
 }
