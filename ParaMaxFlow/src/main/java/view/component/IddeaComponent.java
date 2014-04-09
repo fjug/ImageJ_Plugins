@@ -7,9 +7,9 @@ import java.awt.event.ActionListener;
 import java.beans.PropertyChangeEvent;
 import java.beans.PropertyChangeListener;
 import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileOutputStream;
 import java.io.IOException;
+import java.lang.reflect.InvocationTargetException;
+import java.net.URI;
 import java.util.HashMap;
 import java.util.Set;
 
@@ -17,6 +17,7 @@ import javax.swing.JFileChooser;
 import javax.swing.JMenu;
 import javax.swing.JMenuBar;
 import javax.swing.JMenuItem;
+import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
 import javax.swing.JToolBar;
@@ -46,6 +47,8 @@ import org.jhotdraw.draw.io.DOMStorableInputOutputFormat;
 import org.jhotdraw.draw.io.InputFormat;
 import org.jhotdraw.draw.io.OutputFormat;
 import org.jhotdraw.draw.tool.Tool;
+import org.jhotdraw.gui.Worker;
+import org.jhotdraw.gui.filechooser.ExtensionFileFilter;
 import org.jhotdraw.util.ResourceBundleUtil;
 
 import view.display.InteractiveDrawingView;
@@ -81,7 +84,7 @@ public class IddeaComponent extends JPanel implements ActionListener {
 	// JHotDraw related stuff
 	private DrawingEditor editor;
 	private final InteractiveDrawingView view;
-	private QuadTreeDrawing drawing;
+	private Drawing drawing;
 
 	// Toolbar setup and the toolbar itself
 	private boolean isToolbarVisible = false;
@@ -330,7 +333,38 @@ public class IddeaComponent extends JPanel implements ActionListener {
 			}
 
 			if ( fc.showSaveDialog( this ) == JFileChooser.APPROVE_OPTION ) {
-				this.saveAnnotations( fc.getSelectedFile().getAbsolutePath() );
+				this.setEnabled( false );
+				final File selectedFile;
+				if ( fc.getFileFilter() instanceof ExtensionFileFilter ) {
+					selectedFile = ( ( ExtensionFileFilter ) fc.getFileFilter() ).makeAcceptable( fc.getSelectedFile() );
+				} else {
+					selectedFile = fc.getSelectedFile();
+				}
+				final OutputFormat selectedFormat = fileFilterOutputFormatMap.get( fc.getFileFilter() );
+				new Worker< Object >() {
+
+					@Override
+					protected Object construct() throws IOException {
+						IddeaComponent.this.write( selectedFile.toURI(), selectedFormat );
+						return null;
+					}
+
+					@Override
+					protected void done( final Object value ) {
+						file = selectedFile;
+					}
+
+					@Override
+					protected void failed( final Throwable error ) {
+						error.printStackTrace();
+						JOptionPane.showMessageDialog( IddeaComponent.this, "<html><b>Couldn't save to file \"" + selectedFile.getName() + "\"<br>" + error.toString(), "Save As File", JOptionPane.ERROR_MESSAGE );
+					}
+
+					@Override
+					protected void finished() {
+						IddeaComponent.this.setEnabled( true );
+					}
+				}.start();
 			}
 		} else if ( e.getSource().equals( menuItemOpen ) ) {
 			final JFileChooser fc = getOpenChooser();
@@ -339,7 +373,33 @@ public class IddeaComponent extends JPanel implements ActionListener {
 			}
 
 			if ( fc.showOpenDialog( this ) == JFileChooser.APPROVE_OPTION ) {
-				this.loadAnnotations( fc.getSelectedFile().getAbsolutePath() );
+				this.setEnabled( false );
+				final File selectedFile = fc.getSelectedFile();
+				final InputFormat selectedFormat = fileFilterInputFormatMap.get( fc.getFileFilter() );
+				new Worker< Object >() {
+
+					@Override
+					protected Object construct() throws IOException {
+						IddeaComponent.this.read( selectedFile.toURI(), selectedFormat );
+						return null;
+					}
+
+					@Override
+					protected void done( final Object value ) {
+						file = selectedFile;
+					}
+
+					@Override
+					protected void failed( final Throwable error ) {
+						error.printStackTrace();
+						JOptionPane.showMessageDialog( IddeaComponent.this, "<html><b>Couldn't open file \"" + selectedFile.getName() + "\"<br>" + error.toString(), "Open File", JOptionPane.ERROR_MESSAGE );
+					}
+
+					@Override
+					protected void finished() {
+						IddeaComponent.this.setEnabled( true );
+					}
+				}.start();
 			}
 		}
 	}
@@ -380,67 +440,16 @@ public class IddeaComponent extends JPanel implements ActionListener {
 	}
 
 	/**
-	 * Loads annotations from file.
-	 * 
-	 * @param filename
+	 * @param loadedDrawing
 	 */
-	public void loadAnnotations( final String filename ) {
-		try {
-			final Drawing drawing = createDrawing();
-
-			boolean success = false;
-			for ( final InputFormat sfi : drawing.getInputFormats() ) {
-				try {
-					sfi.read( new FileInputStream( filename ), drawing, true );
-					success = true;
-					break;
-				} catch ( final Exception e ) {
-					// try with the next input format
-				}
-			}
-			if ( !success ) {
-				final ResourceBundleUtil labels = ResourceBundleUtil.getBundle( "org.jhotdraw.app.Labels" );
-				throw new IOException( labels.getFormatted( "file.open.unsupportedFileFormat.message", filename ) );
-			}
-
-			SwingUtilities.invokeAndWait( new Runnable() {
-
-				@Override
-				public void run() {
-					view.setDrawing( drawing );
-				}
-			} );
-		} catch ( final InterruptedException e ) {
-			final InternalError error = new InternalError();
-			error.initCause( e );
-			throw error;
-		} catch ( final java.lang.reflect.InvocationTargetException e ) {
-			final InternalError error = new InternalError();
-			error.initCause( e );
-			throw error;
-		} catch ( final IOException e ) {
-			final InternalError error = new InternalError();
-			error.initCause( e );
-			throw error;
+	protected void setDrawing( final Drawing loadedDrawing ) {
+//        undoManager.discardAllEdits();
+		if ( view.getDrawing() != null ) {
+//            view.getDrawing().removeUndoableEditListener(undoManager);
 		}
-	}
-
-	/**
-	 * Saves all annotations to a given file.
-	 * 
-	 * @param filename
-	 */
-	public void saveAnnotations( final String filename ) {
-		final Drawing drawing = view.getDrawing();
-		final OutputFormat outputFormat = drawing.getOutputFormats().get( 0 );
-		try {
-			outputFormat.write( new FileOutputStream( filename ), drawing );
-		} catch ( final IOException e ) {
-			final InternalError error = new InternalError();
-			error.initCause( e );
-			throw error;
-
-		}
+		view.setDrawing( loadedDrawing );
+//        loadedDrawing.addUndoableEditListener(undoManager);
+		this.drawing = loadedDrawing;
 	}
 
 	//////////////////////////// PRIVATE STUFF /////////////////////////////////
@@ -608,6 +617,150 @@ public class IddeaComponent extends JPanel implements ActionListener {
 			} );
 		}
 		return saveChooser;
+	}
+
+	/**
+	 * Writes the drawing from the IddeaComponent into a file.
+	 * <p>
+	 * This method should be called from a worker thread. Calling it from the
+	 * Event Dispatcher Thread will block the user interface, until the drawing
+	 * is written.
+	 */
+	public void write( final URI uri ) throws IOException {
+		final Drawing saveDrawing = IddeaComponent.this.drawing;
+		if ( saveDrawing.getOutputFormats().size() == 0 ) { throw new InternalError( "Drawing object has no output formats." ); }
+
+		// Try out all output formats until we find one which accepts the
+		// filename entered by the user.
+		final File f = new File( uri );
+		for ( final OutputFormat format : saveDrawing.getOutputFormats() ) {
+			if ( format.getFileFilter().accept( f ) ) {
+				format.write( uri, saveDrawing );
+				// We get here if writing was successful.
+				// We can return since we are done.
+				return;
+
+			}
+
+		}
+		throw new IOException( "No output format for " + f.getName() );
+	}
+
+	/**
+	 * Writes the drawing from the IddeaComponent into a file using the
+	 * specified output format.
+	 * <p>
+	 * This method should be called from a worker thread. Calling it from the
+	 * Event Dispatcher Thread will block the user interface, until the drawing
+	 * is written.
+	 */
+	public void write( final URI f, final OutputFormat format ) throws IOException {
+		if ( format == null ) {
+			write( f );
+			return;
+		}
+
+		// Write drawing to file
+		final Drawing saveDrawing = IddeaComponent.this.drawing;
+		format.write( f, saveDrawing );
+	}
+
+	/**
+	 * Reads a drawing from the specified file into the SVGDrawingPanel.
+	 * <p>
+	 * This method should be called from a worker thread. Calling it from the
+	 * Event Dispatcher Thread will block the user interface, until the drawing
+	 * is read.
+	 */
+	public void read( final URI f ) throws IOException {
+		// Create a new drawing object
+		final Drawing newDrawing = createDrawing();
+		if ( newDrawing.getInputFormats().size() == 0 ) { throw new InternalError( "Drawing object has no input formats." ); }
+
+		// Try out all input formats until we succeed
+		IOException firstIOException = null;
+		for ( final InputFormat format : newDrawing.getInputFormats() ) {
+			try {
+				format.read( f, newDrawing );
+				final Drawing loadedDrawing = newDrawing;
+				final Runnable r = new Runnable() {
+
+					@Override
+					public void run() {
+						// Set the drawing on the Event Dispatcher Thread
+						setDrawing( loadedDrawing );
+					}
+				};
+				if ( SwingUtilities.isEventDispatchThread() ) {
+					r.run();
+				} else {
+					try {
+						SwingUtilities.invokeAndWait( r );
+					} catch ( final InterruptedException ex ) {
+						// suppress silently
+					} catch ( final InvocationTargetException ex ) {
+						final InternalError ie = new InternalError( "Error setting drawing." );
+						ie.initCause( ex );
+						throw ie;
+					}
+				}
+				// We get here if reading was successful.
+				// We can return since we are done.
+				return;
+				//
+			} catch ( final IOException e ) {
+				// We get here if reading failed.
+				// We only preserve the exception of the first input format,
+				// because that's the one which is best suited for this drawing.
+				if ( firstIOException == null ) {
+					firstIOException = e;
+				}
+			}
+		}
+		throw firstIOException;
+	}
+
+	/**
+	 * Reads a drawing from the specified file into the SVGDrawingPanel using
+	 * the specified input format.
+	 * <p>
+	 * This method should be called from a worker thread. Calling it from the
+	 * Event Dispatcher Thread will block the user interface, until the drawing
+	 * is read.
+	 */
+	public void read( final URI f, final InputFormat format ) throws IOException {
+		if ( format == null ) {
+			read( f );
+			return;
+		}
+
+		// Create a new drawing object
+		final Drawing newDrawing = createDrawing();
+		if ( newDrawing.getInputFormats().size() == 0 ) { throw new InternalError( "Drawing object has no input formats." ); }
+
+		format.read( f, newDrawing );
+		final Drawing loadedDrawing = newDrawing;
+		final Runnable r = new Runnable() {
+
+			@Override
+			public void run() {
+				// Set the drawing on the Event Dispatcher Thread
+				setDrawing( loadedDrawing );
+			}
+		};
+		if ( SwingUtilities.isEventDispatchThread() ) {
+			r.run();
+		} else {
+			try {
+				SwingUtilities.invokeAndWait( r );
+			} catch ( final InterruptedException ex ) {
+				// suppress silently
+			} catch ( final InvocationTargetException ex ) {
+				final InternalError ie = new InternalError( "Error setting drawing." );
+				ie.initCause( ex );
+				throw ie;
+			}
+		}
 	}
 
 }

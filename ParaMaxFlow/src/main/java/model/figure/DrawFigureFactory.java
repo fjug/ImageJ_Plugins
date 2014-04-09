@@ -1,12 +1,12 @@
 package model.figure;
 
-import model.xml.DefaultDOMFactory;
 import org.jhotdraw.draw.AttributeKeys;
 import org.jhotdraw.draw.BezierFigure;
 import org.jhotdraw.draw.DefaultDrawing;
 import org.jhotdraw.draw.GroupFigure;
 import org.jhotdraw.draw.QuadTreeDrawing;
 import org.jhotdraw.draw.connector.ChopBezierConnector;
+import org.jhotdraw.xml.DefaultDOMFactory;
 
 /**
  * DrawFingureFactory provides how to store DOM model for the drawing objects.
