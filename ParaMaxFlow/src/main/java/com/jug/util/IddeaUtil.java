@@ -11,20 +11,14 @@ import java.util.Set;
 
 import net.imglib2.IterableInterval;
 import net.imglib2.Localizable;
-import net.imglib2.Point;
 import net.imglib2.RandomAccessible;
 import net.imglib2.RandomAccessibleInterval;
-import net.imglib2.converter.Converter;
-import net.imglib2.converter.Converters;
 import net.imglib2.histogram.Histogram1d;
 import net.imglib2.histogram.Real1dBinMapper;
-import net.imglib2.img.display.imagej.ImageJFunctions;
 import net.imglib2.newroi.Regions;
 import net.imglib2.newroi.util.ContainsRandomAccessible;
 import net.imglib2.newroi.util.LocalizableSet;
-import net.imglib2.realtransform.AffineTransform2D;
 import net.imglib2.type.logic.BoolType;
-import net.imglib2.type.numeric.integer.UnsignedByteType;
 import net.imglib2.type.numeric.real.DoubleType;
 import net.imglib2.view.Views;
 
@@ -42,15 +36,14 @@ public class IddeaUtil {
 	static class MyFigureMarkupsLocator implements LocalizableSet {
 
 		private final Set< Figure > figures;
-		private final AffineTransform2D trans;
 		private final Color color;
 
 		/**
 		 * @param jHotDrawFigures
 		 * @param transform
 		 */
-		public MyFigureMarkupsLocator( final Set< Figure > jHotDrawFigures, final AffineTransform2D transform ) {
-			this( jHotDrawFigures, transform, null );
+		public MyFigureMarkupsLocator( final Set< Figure > jHotDrawFigures ) {
+			this( jHotDrawFigures, null );
 		}
 
 		/**
@@ -58,9 +51,8 @@ public class IddeaUtil {
 		 * @param transform
 		 * @param filterColor
 		 */
-		public MyFigureMarkupsLocator( final Set< Figure > jHotDrawFigures, final AffineTransform2D transform, final Color filterColor ) {
+		public MyFigureMarkupsLocator( final Set< Figure > jHotDrawFigures, final Color filterColor ) {
 			this.figures = jHotDrawFigures;
-			this.trans = transform.inverse();
 			this.color = filterColor;
 		}
 
@@ -71,13 +63,14 @@ public class IddeaUtil {
 
 		@Override
 		public boolean contains( final Localizable p ) {
-			final Point p_orig = new Point( 2 );
-//			this.trans.apply( p, p_orig ); MIND: change p to p_orig in the line just below here...
 			final Point2D.Double point2d = new Point2D.Double( p.getDoublePosition( 0 ), p.getDoublePosition( 1 ) );
 
 			for ( final Figure f : this.figures ) {
+
 				if ( this.color == null || this.color.equals( f.get( org.jhotdraw.draw.AttributeKeys.STROKE_COLOR ) ) ) {
-					if ( f.contains( point2d ) ) { return true; }
+					if ( f.getBounds().contains( point2d ) ) { //speedup
+						if ( f.contains( point2d ) ) { return true; }
+					}
 				}
 			}
 			return false;
@@ -87,15 +80,14 @@ public class IddeaUtil {
 	/**
 	 * @param iddeaComp
 	 */
-	public static SampledFunction1D getHistogramFromInteractiveViewer( final IddeaComponent iddeaComp, final double min, final double max, final int numBins ) {
+	public static SampledFunction1D getHistogramFromInteractiveViewer( final IddeaComponent iddeaComp, final Color color, final double min, final double max, final int numBins ) {
 		final Set< Figure > figures = iddeaComp.getAllAnnotationFigures();
 
 		// Figure out which pixels are selected by any JHotDraw annotations
-		final MyFigureMarkupsLocator locationsForeground = new MyFigureMarkupsLocator( figures, iddeaComp.getViewerTransform() );
-		final MyFigureMarkupsLocator locationsBackground = new MyFigureMarkupsLocator( figures, iddeaComp.getViewerTransform() );
+		final MyFigureMarkupsLocator locations = new MyFigureMarkupsLocator( figures, color );
 
 		// create a (unbounded) BoolType RandomAccessible with pixel value decided by MyCircle.contains
-		final RandomAccessible< BoolType > a = new ContainsRandomAccessible( locationsForeground );
+		final RandomAccessible< BoolType > a = new ContainsRandomAccessible( locations );
 
 		// restrict that to the interval of the image
 		final RandomAccessibleInterval< BoolType > b = Views.interval( a, iddeaComp.getSourceImage() );
@@ -107,13 +99,13 @@ public class IddeaUtil {
 		// img pixels for whose coordinates MyFigureMarkupsLocator.contains() is true
 		final IterableInterval< DoubleType > samples = Regions.sample( c, iddeaComp.getSourceImage() );
 
-		ImageJFunctions.show( Converters.convert( b, new Converter< BoolType, UnsignedByteType >() {
-
-			@Override
-			public void convert( final BoolType input, final UnsignedByteType output ) {
-				output.set( input.get() ? 255 : 0 );
-			}
-		}, new UnsignedByteType() ) );
+//		ImageJFunctions.show( Converters.convert( b, new Converter< BoolType, UnsignedByteType >() {
+//
+//			@Override
+//			public void convert( final BoolType input, final UnsignedByteType output ) {
+//				output.set( input.get() ? 255 : 0 );
+//			}
+//		}, new UnsignedByteType() ) );
 
 		final Histogram1d< DoubleType > histogram = new Histogram1d< DoubleType >( samples, new Real1dBinMapper< DoubleType >( min, max, numBins, false ) );
 		final long[] longArray = histogram.toLongArray();
@@ -125,8 +117,6 @@ public class IddeaUtil {
 			y.add( ( double ) longArray[ i ] );
 		}
 
-		final SampledFunction1D fHist = new SampledFunction1D( x, y );
-
-		return fHist;
+		return new SampledFunction1D( x, y );
 	}
 }

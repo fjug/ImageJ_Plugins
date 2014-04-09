@@ -75,6 +75,7 @@ public class ParaMaxFlowPanel extends JPanel implements ActionListener, ChangeLi
 
 //	private static final String DEFAULT_PATH = "/Users/moon/Projects/git-projects/fjug/ImageJ_PlugIns/ParaMaxFlow/src/main/resources/";
 	private static final String DEFAULT_PATH = "/Users/jug/Dropbox/WorkingData/Repositories/GIT/ImageJ_PlugIns/ParaMaxFlow/src/main/resources";
+	final int PLOT_STEPS = 200;
 
 	private static ParaMaxFlowPanel main;
 
@@ -103,7 +104,7 @@ public class ParaMaxFlowPanel extends JPanel implements ActionListener, ChangeLi
 	private JButton bSetPairwiseIsing;
 	private JButton bSetPairwiseEdge;
 
-	private JButton bShowHistogram;
+	private JButton bHistogramToUnaries;
 
 	private JButton bLoadClassifier;
 	private JToggleButton bUseClassifier;
@@ -120,6 +121,10 @@ public class ParaMaxFlowPanel extends JPanel implements ActionListener, ChangeLi
 
 	private FunctionComposerDialog funcComposerUnaries;
 	private FunctionComposerDialog funcComposerPairwiseEdge;
+
+	// The colors used to annotate foreground and background pixels
+	private final Color colorForeground = new Color( 0.0f, 1.0f, 0.0f, 0.25f );
+	private final Color colorBackground = new Color( 1.0f, 0.0f, 0.0f, 0.25f );
 
 	/**
 	 * @param imgPlus
@@ -205,8 +210,8 @@ public class ParaMaxFlowPanel extends JPanel implements ActionListener, ChangeLi
 		bCompute = new JButton( "GO FOR IT" );
 		bCompute.addActionListener( this );
 
-		bShowHistogram = new JButton( "show histogram" );
-		bShowHistogram.addActionListener( this );
+		bHistogramToUnaries = new JButton( "use annotations as unary potential" );
+		bHistogramToUnaries.addActionListener( this );
 
 		bLoadClassifier = new JButton( "load class." );
 		bLoadClassifier.addActionListener( this );
@@ -230,7 +235,7 @@ public class ParaMaxFlowPanel extends JPanel implements ActionListener, ChangeLi
 
 		JPanel help = new JPanel( new BorderLayout() );
 		help.add( icOrig, BorderLayout.CENTER );
-		help.add( bShowHistogram, BorderLayout.SOUTH );
+		help.add( bHistogramToUnaries, BorderLayout.SOUTH );
 		tabsViews.addTab( "raw data", help );
 
 		tabsViews.addTab( "classif.", icClass );
@@ -332,12 +337,12 @@ public class ParaMaxFlowPanel extends JPanel implements ActionListener, ChangeLi
 		iddeaComponent.addToolBarSeparator();
 
 		final HashMap< AttributeKey, Object > foreground = new HashMap< AttributeKey, Object >();
-		org.jhotdraw.draw.AttributeKeys.STROKE_COLOR.put( foreground, new Color( 0.0f, 1.0f, 0.0f, 0.25f ) );
+		org.jhotdraw.draw.AttributeKeys.STROKE_COLOR.put( foreground, colorForeground );
 		org.jhotdraw.draw.AttributeKeys.STROKE_WIDTH.put( foreground, 15d );
 		iddeaComponent.addTool( new BezierTool( new BezierFigure(), foreground ), "edit.scribbleForeground", mylabels );
 
 		final HashMap< AttributeKey, Object > background = new HashMap< AttributeKey, Object >();
-		org.jhotdraw.draw.AttributeKeys.STROKE_COLOR.put( background, new Color( 1.0f, 0.0f, 0.0f, 0.25f ) );
+		org.jhotdraw.draw.AttributeKeys.STROKE_COLOR.put( background, colorBackground );
 		org.jhotdraw.draw.AttributeKeys.STROKE_WIDTH.put( background, 15d );
 		iddeaComponent.addTool( new BezierTool( new BezierFigure(), background ), "edit.scribbleBackground", mylabels );
 
@@ -372,18 +377,16 @@ public class ParaMaxFlowPanel extends JPanel implements ActionListener, ChangeLi
 	 *
 	 */
 	private void updateCostPlots() {
-		final int STEPS = 200;
-
 		costPlots.removeAllPlots();
 
-		final double[] xArray = new double[ STEPS ];
-		final double[] costUnary = new double[ STEPS ];
-		final double[] costIsing = new double[ STEPS ];
-		final double[] costPairwiseX = new double[ STEPS ];
-		final double[] costPairwiseY = new double[ STEPS ];
-		final double[] costPairwiseZ = new double[ STEPS ];
-		for ( int i = 0; i < STEPS; i++ ) {
-			final double value = ( ( double ) i + 1 ) / STEPS;
+		final double[] xArray = new double[ PLOT_STEPS ];
+		final double[] costUnary = new double[ PLOT_STEPS ];
+		final double[] costIsing = new double[ PLOT_STEPS ];
+		final double[] costPairwiseX = new double[ PLOT_STEPS ];
+		final double[] costPairwiseY = new double[ PLOT_STEPS ];
+		final double[] costPairwiseZ = new double[ PLOT_STEPS ];
+		for ( int i = 0; i < PLOT_STEPS; i++ ) {
+			final double value = ( ( double ) i + 1 ) / PLOT_STEPS;
 			xArray[ i ] = value;
 			costUnary[ i ] = SegmentationMagic.getFktUnary().evaluate( value );
 			costIsing[ i ] = SegmentationMagic.getCostIsing();
@@ -525,15 +528,27 @@ public class ParaMaxFlowPanel extends JPanel implements ActionListener, ChangeLi
 		} else if ( e.getSource().equals( bExportSumImg ) ) {
 			ImageJFunctions.show( this.imgSumLong );
 
-		} else if ( e.getSource().equals( bShowHistogram ) ) {
+		} else if ( e.getSource().equals( bHistogramToUnaries ) ) {
 			if ( LongType.class.isInstance( Util.getTypeFromInterval( icOrig.getSourceImage() ) ) || DoubleType.class.isInstance( Util.getTypeFromInterval( icOrig.getSourceImage() ) ) ) {
 
-				final SampledFunction1D fHist = IddeaUtil.getHistogramFromInteractiveViewer( icOrig, 0, 1, 100 );
-				fHist.normalizeMax();
+				final SampledFunction1D fHist = IddeaUtil.getHistogramFromInteractiveViewer( icOrig, colorForeground, 0, 1, PLOT_STEPS );
+				final SampledFunction1D fHistBG = IddeaUtil.getHistogramFromInteractiveViewer( icOrig, colorBackground, 0, 1, PLOT_STEPS );
+
+				fHist.normalizeToDiscreteDistribution();
+				fHistBG.normalizeToDiscreteDistribution();
+
+				fHist.mult( -1.0 );
+				fHist.add( fHistBG );
+				final double min = fHist.getMin();
+				final double max = fHist.getMax();
+				final double absmax = Math.max( Math.abs( min ), Math.abs( max ) );
+				if ( absmax != 0.0 ) fHist.mult( 1.0 / absmax );
+
 				SegmentationMagic.setFktUnary( fHist );
 				updateCostPlots();
+				tabsViews.setSelectedIndex( tabsViews.getTabCount() - 1 );
 			} else {
-				JOptionPane.showMessageDialog( this.getRootPane(), "Histogram can only be created for images of pixel-types 'LongType' or 'DoubleType'." );
+				JOptionPane.showMessageDialog( this.getRootPane(), "Histograms (and therefore unaries) can only be created for images of pixel-types 'LongType' or 'DoubleType'." );
 			}
 		}
 
@@ -584,8 +599,8 @@ public class ParaMaxFlowPanel extends JPanel implements ActionListener, ChangeLi
 			temp = new ImageJ();
 			// IJ.open( "/Users/moon/Documents/clown.tif" );
 			// IJ.open( "/Users/moon/Pictures/spim/spim-0.tif" );
-			// IJ.open( "/Users/jug/Desktop/clown.tif" );
-			IJ.open( "/Users/jug/Desktop/demo.tif" );
+			IJ.open( "/Users/jug/Desktop/clown.tif" );
+//			IJ.open( "/Users/jug/Desktop/demo.tif" );
 		}
 
 		final ImagePlus imgPlus = WindowManager.getCurrentImage();
