@@ -1,18 +1,27 @@
 package view.component;
 
 import java.awt.BorderLayout;
-import java.awt.Color;
 import java.awt.Dimension;
+import java.awt.event.ActionEvent;
+import java.awt.event.ActionListener;
+import java.beans.PropertyChangeEvent;
+import java.beans.PropertyChangeListener;
+import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.Set;
 
+import javax.swing.JFileChooser;
+import javax.swing.JMenu;
+import javax.swing.JMenuBar;
+import javax.swing.JMenuItem;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
 import javax.swing.JToolBar;
 import javax.swing.SwingUtilities;
+import javax.swing.filechooser.FileFilter;
 
 import model.figure.DrawFigureFactory;
 import net.imglib2.RandomAccessibleInterval;
@@ -27,8 +36,6 @@ import net.imglib2.type.numeric.real.DoubleType;
 import net.imglib2.view.IntervalView;
 import net.imglib2.view.Views;
 
-import org.jhotdraw.draw.AttributeKey;
-import org.jhotdraw.draw.BezierFigure;
 import org.jhotdraw.draw.DefaultDrawingEditor;
 import org.jhotdraw.draw.Drawing;
 import org.jhotdraw.draw.DrawingEditor;
@@ -38,7 +45,6 @@ import org.jhotdraw.draw.action.ButtonFactory;
 import org.jhotdraw.draw.io.DOMStorableInputOutputFormat;
 import org.jhotdraw.draw.io.InputFormat;
 import org.jhotdraw.draw.io.OutputFormat;
-import org.jhotdraw.draw.tool.BezierTool;
 import org.jhotdraw.draw.tool.Tool;
 import org.jhotdraw.util.ResourceBundleUtil;
 
@@ -59,7 +65,7 @@ import controller.tool.NullTool;
 
 //TODO This component should be totally generic, being able to host all image types (not only LongType and DoubleType)
 
-public class IddeaComponent extends JPanel {
+public class IddeaComponent extends JPanel implements ActionListener {
 
 	private static final long serialVersionUID = -3808140519052170304L;
 
@@ -75,11 +81,27 @@ public class IddeaComponent extends JPanel {
 	// JHotDraw related stuff
 	private DrawingEditor editor;
 	private final InteractiveDrawingView view;
+	private QuadTreeDrawing drawing;
 
 	// Toolbar setup and the toolbar itself
-	private String toolbarLocation;
 	private boolean isToolbarVisible = false;
+	private String toolbarLocation;
 	private JToolBar tb;
+
+	// Menu related stuff
+	private final boolean isMenuVisible = false;
+	private final JMenuBar menuBar;
+	private final JMenu fileMenu;
+	private final JMenuItem menuItemOpen;
+	private final JMenuItem menuItemSaveAs;
+
+	// File chooser for saving and loading
+	private JFileChooser openChooser;
+	private JFileChooser saveChooser;
+	/** Holds the currently opened file. */
+	private File file;
+	private HashMap< FileFilter, InputFormat > fileFilterInputFormatMap;
+	private HashMap< FileFilter, OutputFormat > fileFilterOutputFormatMap;
 
 	//////////////////////////// CONSTUCTION /////////////////////////////////
 
@@ -110,6 +132,25 @@ public class IddeaComponent extends JPanel {
 		scrollPane.setHorizontalScrollBarPolicy( javax.swing.ScrollPaneConstants.HORIZONTAL_SCROLLBAR_NEVER );
 		scrollPane.setVerticalScrollBarPolicy( javax.swing.ScrollPaneConstants.VERTICAL_SCROLLBAR_NEVER );
 		scrollPane.setViewportView( view );
+
+		menuBar = new JMenuBar();
+		fileMenu = new JMenu();
+		menuItemOpen = new JMenuItem();
+		menuItemSaveAs = new JMenuItem();
+
+		fileMenu.setText( "File" );
+
+		menuItemOpen.setText( "Open..." );
+		menuItemOpen.addActionListener( this );
+		fileMenu.add( menuItemOpen );
+
+		menuItemSaveAs.setText( "Save As..." );
+		menuItemSaveAs.addActionListener( this );
+		fileMenu.add( menuItemSaveAs );
+
+		menuBar.add( fileMenu );
+
+		if ( isMenuVisible ) this.add( menuBar, BorderLayout.NORTH );
 
 		add( scrollPane, java.awt.BorderLayout.CENTER );
 
@@ -277,7 +318,40 @@ public class IddeaComponent extends JPanel {
 		interactiveViewer2D.getJHotDrawDisplay().setPreferredSize( dim );
 	}
 
+	/**
+	 * @see java.awt.event.ActionListener#actionPerformed(java.awt.event.ActionEvent)
+	 */
+	@Override
+	public void actionPerformed( final ActionEvent e ) {
+		if ( e.getSource().equals( menuItemSaveAs ) ) {
+			final JFileChooser fc = getSaveChooser();
+			if ( file != null ) {
+				fc.setSelectedFile( file );
+			}
+
+			if ( fc.showSaveDialog( this ) == JFileChooser.APPROVE_OPTION ) {
+				this.saveAnnotations( fc.getSelectedFile().getAbsolutePath() );
+			}
+		} else if ( e.getSource().equals( menuItemOpen ) ) {
+			final JFileChooser fc = getOpenChooser();
+			if ( file != null ) {
+				fc.setSelectedFile( file );
+			}
+
+			if ( fc.showOpenDialog( this ) == JFileChooser.APPROVE_OPTION ) {
+				this.loadAnnotations( fc.getSelectedFile().getAbsolutePath() );
+			}
+		}
+	}
+
 	//////////////////////////// FUNCTIONS /////////////////////////////////
+
+	public void showMenu( final boolean visible ) {
+		this.remove( menuBar );
+		if ( visible ) {
+			this.add( menuBar, BorderLayout.NORTH );
+		}
+	}
 
 	/**
 	 * Installs a toolbar that contains no annotation functionality at all.
@@ -289,11 +363,6 @@ public class IddeaComponent extends JPanel {
 
 		final ResourceBundleUtil labels = ResourceBundleUtil.getBundle( "model.Labels" );
 		ButtonFactory.addToolTo( tb, editor, new NullTool(), "edit.handleImageData", labels );
-
-		final HashMap< AttributeKey, Object > polygon = new HashMap< AttributeKey, Object >();
-		org.jhotdraw.draw.AttributeKeys.FILL_COLOR.put( polygon, new Color( 0.0f, 0.0f, 1.0f, 0.1f ) );
-		org.jhotdraw.draw.AttributeKeys.STROKE_COLOR.put( polygon, new Color( 0.0f, 0.0f, 1.0f, 0.33f ) );
-		ButtonFactory.addToolTo( tb, editor, new BezierTool( new BezierFigure( true ), polygon ), "edit.createPolygon", ResourceBundleUtil.getBundle( "org.jhotdraw.draw.Labels" ) );
 	}
 
 	/**
@@ -411,7 +480,7 @@ public class IddeaComponent extends JPanel {
 	 * Creates a new Drawing for this view.
 	 */
 	private Drawing createDrawing() {
-		final Drawing drawing = new QuadTreeDrawing();
+		drawing = new QuadTreeDrawing();
 		final DOMStorableInputOutputFormat ioFormat = new DOMStorableInputOutputFormat( new DrawFigureFactory() );
 
 		drawing.addInputFormat( ioFormat );
@@ -481,6 +550,64 @@ public class IddeaComponent extends JPanel {
 	private void updateDoubleTypeSourceAndConverter( final RealRandomAccessible source, final RealARGBConverter converter ) {
 		interactiveViewer2D.updateConverter( converter );
 		interactiveViewer2D.updateSource( source );
+	}
+
+	/** Lazily creates a JFileChooser and returns it. */
+	private JFileChooser getOpenChooser() {
+		if ( openChooser == null ) {
+			openChooser = new JFileChooser();
+			fileFilterInputFormatMap = new HashMap< javax.swing.filechooser.FileFilter, InputFormat >();
+			javax.swing.filechooser.FileFilter firstFF = null;
+			for ( final InputFormat format : this.drawing.getInputFormats() ) {
+				final javax.swing.filechooser.FileFilter ff = format.getFileFilter();
+				if ( firstFF == null ) {
+					firstFF = ff;
+				}
+				fileFilterInputFormatMap.put( ff, format );
+				openChooser.addChoosableFileFilter( ff );
+			}
+			openChooser.setFileFilter( firstFF );
+			openChooser.addPropertyChangeListener( new PropertyChangeListener() {
+
+				@Override
+				public void propertyChange( final PropertyChangeEvent evt ) {
+					if ( "fileFilterChanged".equals( evt.getPropertyName() ) ) {
+						final InputFormat inputFormat = fileFilterInputFormatMap.get( evt.getNewValue() );
+						openChooser.setAccessory( ( inputFormat == null ) ? null : inputFormat.getInputFormatAccessory() );
+					}
+				}
+			} );
+		}
+		return openChooser;
+	}
+
+	/** Lazily creates a JFileChooser and returns it. */
+	private JFileChooser getSaveChooser() {
+		if ( saveChooser == null ) {
+			saveChooser = new JFileChooser();
+			fileFilterOutputFormatMap = new HashMap< javax.swing.filechooser.FileFilter, OutputFormat >();
+			javax.swing.filechooser.FileFilter firstFF = null;
+			for ( final OutputFormat format : this.drawing.getOutputFormats() ) {
+				final javax.swing.filechooser.FileFilter ff = format.getFileFilter();
+				if ( firstFF == null ) {
+					firstFF = ff;
+				}
+				fileFilterOutputFormatMap.put( ff, format );
+				saveChooser.addChoosableFileFilter( ff );
+			}
+			saveChooser.setFileFilter( firstFF );
+			saveChooser.addPropertyChangeListener( new PropertyChangeListener() {
+
+				@Override
+				public void propertyChange( final PropertyChangeEvent evt ) {
+					if ( "fileFilterChanged".equals( evt.getPropertyName() ) ) {
+						final OutputFormat outputFormat = fileFilterOutputFormatMap.get( evt.getNewValue() );
+						saveChooser.setAccessory( ( outputFormat == null ) ? null : outputFormat.getOutputFormatAccessory() );
+					}
+				}
+			} );
+		}
+		return saveChooser;
 	}
 
 }

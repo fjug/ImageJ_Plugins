@@ -53,7 +53,10 @@ import net.imglib2.view.Views;
 
 import org.jhotdraw.draw.AttributeKey;
 import org.jhotdraw.draw.BezierFigure;
+import org.jhotdraw.draw.EllipseFigure;
+import org.jhotdraw.draw.LineFigure;
 import org.jhotdraw.draw.tool.BezierTool;
+import org.jhotdraw.draw.tool.CreationTool;
 import org.jhotdraw.util.ResourceBundleUtil;
 
 import view.component.IddeaComponent;
@@ -153,6 +156,7 @@ public class ParaMaxFlowPanel extends JPanel implements ActionListener, ChangeLi
 		// *** IMAGE VIEWER
 		// ****************************************************************************************
 		installSegmentationToolbar( this.icOrig );
+		icOrig.showMenu( true );
 		this.icOrig.setToolBarLocation( BorderLayout.WEST );
 		this.icOrig.setToolBarVisible( true );
 		this.icOrig.setPreferredSize( new Dimension( imgPlus.getWidth(), imgPlus.getHeight() ) );
@@ -320,28 +324,48 @@ public class ParaMaxFlowPanel extends JPanel implements ActionListener, ChangeLi
 	 *            the IddeaCompnent this toolbar should be added to
 	 */
 	private void installSegmentationToolbar( final IddeaComponent iddeaComponent ) {
-		final ResourceBundleUtil labels = ResourceBundleUtil.getBundle( "model.Labels" );
+		final ResourceBundleUtil labels = ResourceBundleUtil.getBundle( "org.jhotdraw.draw.Labels" );
+		final ResourceBundleUtil mylabels = ResourceBundleUtil.getBundle( "model.Labels" );
 
 		iddeaComponent.installDefaultToolBar();
 
 		iddeaComponent.addToolBarSeparator();
+
+		final HashMap< AttributeKey, Object > foreground = new HashMap< AttributeKey, Object >();
+		org.jhotdraw.draw.AttributeKeys.STROKE_COLOR.put( foreground, new Color( 0.0f, 1.0f, 0.0f, 0.25f ) );
+		org.jhotdraw.draw.AttributeKeys.STROKE_WIDTH.put( foreground, 15d );
+		iddeaComponent.addTool( new BezierTool( new BezierFigure(), foreground ), "edit.scribbleForeground", mylabels );
+
+		final HashMap< AttributeKey, Object > background = new HashMap< AttributeKey, Object >();
+		org.jhotdraw.draw.AttributeKeys.STROKE_COLOR.put( background, new Color( 1.0f, 0.0f, 0.0f, 0.25f ) );
+		org.jhotdraw.draw.AttributeKeys.STROKE_WIDTH.put( background, 15d );
+		iddeaComponent.addTool( new BezierTool( new BezierFigure(), background ), "edit.scribbleBackground", mylabels );
+
+		iddeaComponent.addToolStrokeWidthButton( new double[] { 1d, 5d, 10d, 15d, 30d } );
+
+		iddeaComponent.addToolBarSeparator();
+
+		final HashMap< AttributeKey, Object > line = new HashMap< AttributeKey, Object >();
+		org.jhotdraw.draw.AttributeKeys.FILL_COLOR.put( line, new Color( 0.0f, 0.0f, 1.0f, 0.1f ) );
+		org.jhotdraw.draw.AttributeKeys.STROKE_COLOR.put( line, new Color( 0.0f, 0.0f, 1.0f, 0.33f ) );
+		iddeaComponent.addTool( new CreationTool( new LineFigure(), line ), "edit.createLine", labels );
+
+		final HashMap< AttributeKey, Object > ellipse = new HashMap< AttributeKey, Object >();
+		org.jhotdraw.draw.AttributeKeys.FILL_COLOR.put( ellipse, new Color( 0.0f, 0.0f, 1.0f, 0.1f ) );
+		org.jhotdraw.draw.AttributeKeys.STROKE_COLOR.put( ellipse, new Color( 0.0f, 0.0f, 1.0f, 0.33f ) );
+		iddeaComponent.addTool( new CreationTool( new EllipseFigure(), ellipse ), "edit.createEllipse", labels );
+
+		final HashMap< AttributeKey, Object > scribble = new HashMap< AttributeKey, Object >();
+		org.jhotdraw.draw.AttributeKeys.FILL_COLOR.put( scribble, new Color( 0.0f, 0.0f, 1.0f, 0.1f ) );
+		org.jhotdraw.draw.AttributeKeys.STROKE_COLOR.put( scribble, new Color( 0.0f, 0.0f, 1.0f, 0.33f ) );
+		org.jhotdraw.draw.AttributeKeys.STROKE_WIDTH.put( scribble, 15d );
+		iddeaComponent.addTool( new BezierTool( new BezierFigure( false ), scribble ), "edit.createScribble", labels );
 
 		final HashMap< AttributeKey, Object > polygon = new HashMap< AttributeKey, Object >();
 		org.jhotdraw.draw.AttributeKeys.FILL_COLOR.put( polygon, new Color( 0.0f, 0.0f, 1.0f, 0.1f ) );
 		org.jhotdraw.draw.AttributeKeys.STROKE_COLOR.put( polygon, new Color( 0.0f, 0.0f, 1.0f, 0.33f ) );
 		iddeaComponent.addTool( new BezierTool( new BezierFigure( true ), polygon ), "edit.createPolygon", labels );
 
-		final HashMap< AttributeKey, Object > foreground = new HashMap< AttributeKey, Object >();
-		org.jhotdraw.draw.AttributeKeys.STROKE_COLOR.put( foreground, new Color( 0.0f, 1.0f, 0.0f, 0.25f ) );
-		org.jhotdraw.draw.AttributeKeys.STROKE_WIDTH.put( foreground, 15d );
-		iddeaComponent.addTool( new BezierTool( new BezierFigure(), foreground ), "edit.scribbleForeground", labels );
-
-		final HashMap< AttributeKey, Object > background = new HashMap< AttributeKey, Object >();
-		org.jhotdraw.draw.AttributeKeys.STROKE_COLOR.put( background, new Color( 1.0f, 0.0f, 0.0f, 0.25f ) );
-		org.jhotdraw.draw.AttributeKeys.STROKE_WIDTH.put( background, 15d );
-		iddeaComponent.addTool( new BezierTool( new BezierFigure(), background ), "edit.scribbleBackground", labels );
-
-		iddeaComponent.addToolStrokeWidthButton( new double[] { 1d, 5d, 10d, 15d, 30d } );
 	}
 
 	/**
