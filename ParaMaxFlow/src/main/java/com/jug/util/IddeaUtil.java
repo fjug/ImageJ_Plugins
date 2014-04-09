@@ -88,7 +88,7 @@ public class IddeaUtil {
 	 * @param iddeaComp
 	 */
 	public static SampledFunction1D getHistogramFromInteractiveViewer( final IddeaComponent iddeaComp, final double min, final double max, final int numBins ) {
-		final Set< Figure > figures = iddeaComp.getInteractiveViewer2D().getJHotDrawDisplay().getAllFigures();
+		final Set< Figure > figures = iddeaComp.getAllAnnotationFigures();
 
 		// Figure out which pixels are selected by any JHotDraw annotations
 		final MyFigureMarkupsLocator locationsForeground = new MyFigureMarkupsLocator( figures, iddeaComp.getViewerTransform() );

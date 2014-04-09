@@ -1,6 +1,6 @@
 package view.component;
 
-import controller.tool.DefaultBezierTool;
+import controller.tool.NullTool;
 import ij.ImagePlus;
 import ij.io.Opener;
 import model.figure.DrawFigureFactory;
@@ -99,7 +99,7 @@ public class SamplePanel extends JPanel implements ActionListener {
 
 			//Views.interval(imgOrig, imgOrig)
 
-			annotator.setDoubleTypeScreenImage( Views.interval( imgOrig, imgOrig ) );
+			annotator.setDoubleTypeSourceImage( Views.interval( imgOrig, imgOrig ) );
 		}
 	}
 }

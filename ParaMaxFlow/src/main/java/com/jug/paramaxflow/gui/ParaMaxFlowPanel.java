@@ -21,6 +21,7 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
+import java.util.HashMap;
 
 import javax.swing.AbstractAction;
 import javax.swing.BorderFactory;
@@ -49,6 +50,12 @@ import net.imglib2.type.numeric.integer.LongType;
 import net.imglib2.type.numeric.real.DoubleType;
 import net.imglib2.util.Util;
 import net.imglib2.view.Views;
+
+import org.jhotdraw.draw.AttributeKey;
+import org.jhotdraw.draw.BezierFigure;
+import org.jhotdraw.draw.tool.BezierTool;
+import org.jhotdraw.util.ResourceBundleUtil;
+
 import view.component.IddeaComponent;
 
 import com.jug.fkt.Function1D;
@@ -145,22 +152,22 @@ public class ParaMaxFlowPanel extends JPanel implements ActionListener, ChangeLi
 		// ****************************************************************************************
 		// *** IMAGE VIEWER
 		// ****************************************************************************************
-		this.icOrig.installSegmentationToolBar();
+		installSegmentationToolbar( this.icOrig );
 		this.icOrig.setToolBarLocation( BorderLayout.WEST );
 		this.icOrig.setToolBarVisible( true );
 		this.icOrig.setPreferredSize( new Dimension( imgPlus.getWidth(), imgPlus.getHeight() ) );
 
-		this.icClass.installMinimalToolBar();
+		this.icClass.installDefaultToolBar();
 		this.icClass.setToolBarLocation( BorderLayout.WEST );
 		this.icClass.setToolBarVisible( true );
 		this.icClass.setPreferredSize( new Dimension( imgPlus.getWidth(), imgPlus.getHeight() ) );
 
-		this.icSumImg.installMinimalToolBar();
+		this.icSumImg.installDefaultToolBar();
 		this.icSumImg.setToolBarLocation( BorderLayout.WEST );
 		this.icSumImg.setToolBarVisible( true );
 		this.icSumImg.setPreferredSize( new Dimension( imgPlus.getWidth(), imgPlus.getHeight() ) );
 
-		this.icSeg.installMinimalToolBar();
+		this.icSeg.installDefaultToolBar();
 		this.icSeg.setToolBarLocation( BorderLayout.WEST );
 		this.icSeg.setToolBarVisible( true );
 		this.icSeg.setPreferredSize( new Dimension( imgPlus.getWidth(), imgPlus.getHeight() ) );
@@ -309,6 +316,35 @@ public class ParaMaxFlowPanel extends JPanel implements ActionListener, ChangeLi
 	}
 
 	/**
+	 * @param iddeaComponent
+	 *            the IddeaCompnent this toolbar should be added to
+	 */
+	private void installSegmentationToolbar( final IddeaComponent iddeaComponent ) {
+		final ResourceBundleUtil labels = ResourceBundleUtil.getBundle( "model.Labels" );
+
+		iddeaComponent.installDefaultToolBar();
+
+		iddeaComponent.addToolBarSeparator();
+
+		final HashMap< AttributeKey, Object > polygon = new HashMap< AttributeKey, Object >();
+		org.jhotdraw.draw.AttributeKeys.FILL_COLOR.put( polygon, new Color( 0.0f, 0.0f, 1.0f, 0.1f ) );
+		org.jhotdraw.draw.AttributeKeys.STROKE_COLOR.put( polygon, new Color( 0.0f, 0.0f, 1.0f, 0.33f ) );
+		iddeaComponent.addTool( new BezierTool( new BezierFigure( true ), polygon ), "edit.createPolygon", labels );
+
+		final HashMap< AttributeKey, Object > foreground = new HashMap< AttributeKey, Object >();
+		org.jhotdraw.draw.AttributeKeys.STROKE_COLOR.put( foreground, new Color( 0.0f, 1.0f, 0.0f, 0.25f ) );
+		org.jhotdraw.draw.AttributeKeys.STROKE_WIDTH.put( foreground, 15d );
+		iddeaComponent.addTool( new BezierTool( new BezierFigure(), foreground ), "edit.scribbleForeground", labels );
+
+		final HashMap< AttributeKey, Object > background = new HashMap< AttributeKey, Object >();
+		org.jhotdraw.draw.AttributeKeys.STROKE_COLOR.put( background, new Color( 1.0f, 0.0f, 0.0f, 0.25f ) );
+		org.jhotdraw.draw.AttributeKeys.STROKE_WIDTH.put( background, 15d );
+		iddeaComponent.addTool( new BezierTool( new BezierFigure(), background ), "edit.scribbleBackground", labels );
+
+		iddeaComponent.addToolStrokeWidthButton( new double[] { 1d, 5d, 10d, 15d, 30d } );
+	}
+
+	/**
 	 *
 	 */
 	private void updateCostPlots() {
@@ -373,7 +409,7 @@ public class ParaMaxFlowPanel extends JPanel implements ActionListener, ChangeLi
 		} else if ( e.getSource().equals( bUseClassifier ) ) {
 			getImgClassified();
 //			SegmentationMagic.showLastClassified();
-			this.icClass.setDoubleTypeScreenImage( this.imgClassified );
+			this.icClass.setDoubleTypeSourceImage( this.imgClassified );
 
 		} else if ( e.getSource().equals( bLoadCostFunctions ) ) {
 			final JFileChooser fc = new JFileChooser( DEFAULT_PATH );
@@ -457,7 +493,7 @@ public class ParaMaxFlowPanel extends JPanel implements ActionListener, ChangeLi
 			} else {
 				this.imgSumLong = SegmentationMagic.returnParamaxflowRegionSums( imgOrigNorm );
 			}
-			this.icSumImg.setLongTypeScreenImage( this.imgSumLong );
+			this.icSumImg.setLongTypeSourceImage( this.imgSumLong );
 			this.numSols = SegmentationMagic.getNumSolutions();
 			this.sliderSegmentation.setMaximum( ( int ) this.numSols );
 			this.sliderSegmentation.setValue( 0 );
@@ -466,7 +502,7 @@ public class ParaMaxFlowPanel extends JPanel implements ActionListener, ChangeLi
 			ImageJFunctions.show( this.imgSumLong );
 
 		} else if ( e.getSource().equals( bShowHistogram ) ) {
-			if ( LongType.class.isInstance( Util.getTypeFromRealRandomAccess( icOrig.getInteractiveViewer2D().getSource() ) ) || DoubleType.class.isInstance( Util.getTypeFromRealRandomAccess( icOrig.getInteractiveViewer2D().getSource() ) ) ) {
+			if ( LongType.class.isInstance( Util.getTypeFromInterval( icOrig.getSourceImage() ) ) || DoubleType.class.isInstance( Util.getTypeFromInterval( icOrig.getSourceImage() ) ) ) {
 
 				final SampledFunction1D fHist = IddeaUtil.getHistogramFromInteractiveViewer( icOrig, 0, 1, 100 );
 				fHist.normalizeMax();
@@ -513,7 +549,7 @@ public class ParaMaxFlowPanel extends JPanel implements ActionListener, ChangeLi
 		if ( e.getSource().equals( sliderSegmentation ) ) {
 			currSeg = sliderSegmentation.getValue();
 			this.imgSegmentation = SegmentationMagic.returnSegmentation( imgSumLong, currSeg );
-			this.icSeg.setLongTypeScreenImage( imgSegmentation );
+			this.icSeg.setLongTypeSourceImage( imgSegmentation );
 		}
 	}
 
