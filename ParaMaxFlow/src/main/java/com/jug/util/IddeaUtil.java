@@ -91,8 +91,8 @@ public class IddeaUtil {
 		final Set< Figure > figures = iddeaComp.getInteractiveViewer2D().getJHotDrawDisplay().getAllFigures();
 
 		// Figure out which pixels are selected by any JHotDraw annotations
-		final MyFigureMarkupsLocator locationsForeground = new MyFigureMarkupsLocator( figures, iddeaComp.getInteractiveViewer2D().getViewerTransform() );
-		final MyFigureMarkupsLocator locationsBackground = new MyFigureMarkupsLocator( figures, iddeaComp.getInteractiveViewer2D().getViewerTransform() );
+		final MyFigureMarkupsLocator locationsForeground = new MyFigureMarkupsLocator( figures, iddeaComp.getViewerTransform() );
+		final MyFigureMarkupsLocator locationsBackground = new MyFigureMarkupsLocator( figures, iddeaComp.getViewerTransform() );
 
 		// create a (unbounded) BoolType RandomAccessible with pixel value decided by MyCircle.contains
 		final RandomAccessible< BoolType > a = new ContainsRandomAccessible( locationsForeground );
