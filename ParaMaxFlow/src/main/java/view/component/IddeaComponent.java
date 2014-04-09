@@ -138,15 +138,6 @@ public class IddeaComponent extends JPanel {
 		return interactiveViewer2D.getJHotDrawDisplay().getAllFigures();
 	}
 
-	//////////////////////////// OVERRIDDEN /////////////////////////////////
-
-	@Override
-	public void setPreferredSize( final Dimension dim ) {
-		interactiveViewer2D.getJHotDrawDisplay().setPreferredSize( dim );
-	}
-
-	//////////////////////////// FUNCTIONS /////////////////////////////////
-
 	/**
 	 * Returns the current screen image.
 	 * 
@@ -154,23 +145,6 @@ public class IddeaComponent extends JPanel {
 	 */
 	public IntervalView< DoubleType > getSourceImage() {
 		return this.ivSourceImage;
-	}
-
-	/**
-	 * Installs a toolbar that contains no annotation functionality at all.
-	 */
-	public void installDefaultToolBar() {
-		this.tb.removeAll();
-
-		ButtonFactory.addSelectionToolTo( tb, editor, ButtonFactory.createDrawingActions( editor ), ButtonFactory.createSelectionActions( editor ) );
-
-		final ResourceBundleUtil labels = ResourceBundleUtil.getBundle( "model.Labels" );
-		ButtonFactory.addToolTo( tb, editor, new NullTool(), "edit.handleImageData", labels );
-
-		final HashMap< AttributeKey, Object > polygon = new HashMap< AttributeKey, Object >();
-		org.jhotdraw.draw.AttributeKeys.FILL_COLOR.put( polygon, new Color( 0.0f, 0.0f, 1.0f, 0.1f ) );
-		org.jhotdraw.draw.AttributeKeys.STROKE_COLOR.put( polygon, new Color( 0.0f, 0.0f, 1.0f, 0.33f ) );
-		ButtonFactory.addToolTo( tb, editor, new BezierTool( new BezierFigure( true ), polygon ), "edit.createPolygon", ResourceBundleUtil.getBundle( "org.jhotdraw.draw.Labels" ) );
 	}
 
 	/**
@@ -201,84 +175,6 @@ public class IddeaComponent extends JPanel {
 		if ( isToolbarVisible ) {
 			setToolBarVisible( false );
 			setToolBarVisible( true );
-		}
-	}
-
-	/**
-	 * Shows or hides the currently installed toolbar.
-	 * 
-	 * @param visible
-	 */
-	public void setToolBarVisible( final boolean visible ) {
-		isToolbarVisible = visible;
-		if ( isToolbarVisible ) {
-			add( tb, toolbarLocation );
-		} else {
-			remove( tb );
-		}
-	}
-
-	/**
-	 * Loads annotations from file.
-	 * 
-	 * @param filename
-	 */
-	public void loadAnnotations( final String filename ) {
-		try {
-			final Drawing drawing = createDrawing();
-
-			boolean success = false;
-			for ( final InputFormat sfi : drawing.getInputFormats() ) {
-				try {
-					sfi.read( new FileInputStream( filename ), drawing, true );
-					success = true;
-					break;
-				} catch ( final Exception e ) {
-					// try with the next input format
-				}
-			}
-			if ( !success ) {
-				final ResourceBundleUtil labels = ResourceBundleUtil.getBundle( "org.jhotdraw.app.Labels" );
-				throw new IOException( labels.getFormatted( "file.open.unsupportedFileFormat.message", filename ) );
-			}
-
-			SwingUtilities.invokeAndWait( new Runnable() {
-
-				@Override
-				public void run() {
-					view.setDrawing( drawing );
-				}
-			} );
-		} catch ( final InterruptedException e ) {
-			final InternalError error = new InternalError();
-			error.initCause( e );
-			throw error;
-		} catch ( final java.lang.reflect.InvocationTargetException e ) {
-			final InternalError error = new InternalError();
-			error.initCause( e );
-			throw error;
-		} catch ( final IOException e ) {
-			final InternalError error = new InternalError();
-			error.initCause( e );
-			throw error;
-		}
-	}
-
-	/**
-	 * Saves all annotations to a given file.
-	 * 
-	 * @param filename
-	 */
-	public void saveAnnotations( final String filename ) {
-		final Drawing drawing = view.getDrawing();
-		final OutputFormat outputFormat = drawing.getOutputFormats().get( 0 );
-		try {
-			outputFormat.write( new FileOutputStream( filename ), drawing );
-		} catch ( final IOException e ) {
-			final InternalError error = new InternalError();
-			error.initCause( e );
-			throw error;
-
 		}
 	}
 
@@ -374,14 +270,108 @@ public class IddeaComponent extends JPanel {
 		this.setLongTypeSourceImage( Views.interval( raiSource, raiSource ) );
 	}
 
+	//////////////////////////// OVERRIDDEN /////////////////////////////////
+
+	@Override
+	public void setPreferredSize( final Dimension dim ) {
+		interactiveViewer2D.getJHotDrawDisplay().setPreferredSize( dim );
+	}
+
+	//////////////////////////// FUNCTIONS /////////////////////////////////
+
 	/**
-	 * Update the realRandomSource with new source.
-	 * 
-	 * @param source
+	 * Installs a toolbar that contains no annotation functionality at all.
 	 */
-	public void updateDoubleTypeSourceAndConverter( final RealRandomAccessible source, final RealARGBConverter converter ) {
-		interactiveViewer2D.updateConverter( converter );
-		interactiveViewer2D.updateSource( source );
+	public void installDefaultToolBar() {
+		this.tb.removeAll();
+
+		ButtonFactory.addSelectionToolTo( tb, editor, ButtonFactory.createDrawingActions( editor ), ButtonFactory.createSelectionActions( editor ) );
+
+		final ResourceBundleUtil labels = ResourceBundleUtil.getBundle( "model.Labels" );
+		ButtonFactory.addToolTo( tb, editor, new NullTool(), "edit.handleImageData", labels );
+
+		final HashMap< AttributeKey, Object > polygon = new HashMap< AttributeKey, Object >();
+		org.jhotdraw.draw.AttributeKeys.FILL_COLOR.put( polygon, new Color( 0.0f, 0.0f, 1.0f, 0.1f ) );
+		org.jhotdraw.draw.AttributeKeys.STROKE_COLOR.put( polygon, new Color( 0.0f, 0.0f, 1.0f, 0.33f ) );
+		ButtonFactory.addToolTo( tb, editor, new BezierTool( new BezierFigure( true ), polygon ), "edit.createPolygon", ResourceBundleUtil.getBundle( "org.jhotdraw.draw.Labels" ) );
+	}
+
+	/**
+	 * Shows or hides the currently installed toolbar.
+	 * 
+	 * @param visible
+	 */
+	public void setToolBarVisible( final boolean visible ) {
+		isToolbarVisible = visible;
+		if ( isToolbarVisible ) {
+			add( tb, toolbarLocation );
+		} else {
+			remove( tb );
+		}
+	}
+
+	/**
+	 * Loads annotations from file.
+	 * 
+	 * @param filename
+	 */
+	public void loadAnnotations( final String filename ) {
+		try {
+			final Drawing drawing = createDrawing();
+
+			boolean success = false;
+			for ( final InputFormat sfi : drawing.getInputFormats() ) {
+				try {
+					sfi.read( new FileInputStream( filename ), drawing, true );
+					success = true;
+					break;
+				} catch ( final Exception e ) {
+					// try with the next input format
+				}
+			}
+			if ( !success ) {
+				final ResourceBundleUtil labels = ResourceBundleUtil.getBundle( "org.jhotdraw.app.Labels" );
+				throw new IOException( labels.getFormatted( "file.open.unsupportedFileFormat.message", filename ) );
+			}
+
+			SwingUtilities.invokeAndWait( new Runnable() {
+
+				@Override
+				public void run() {
+					view.setDrawing( drawing );
+				}
+			} );
+		} catch ( final InterruptedException e ) {
+			final InternalError error = new InternalError();
+			error.initCause( e );
+			throw error;
+		} catch ( final java.lang.reflect.InvocationTargetException e ) {
+			final InternalError error = new InternalError();
+			error.initCause( e );
+			throw error;
+		} catch ( final IOException e ) {
+			final InternalError error = new InternalError();
+			error.initCause( e );
+			throw error;
+		}
+	}
+
+	/**
+	 * Saves all annotations to a given file.
+	 * 
+	 * @param filename
+	 */
+	public void saveAnnotations( final String filename ) {
+		final Drawing drawing = view.getDrawing();
+		final OutputFormat outputFormat = drawing.getOutputFormats().get( 0 );
+		try {
+			outputFormat.write( new FileOutputStream( filename ), drawing );
+		} catch ( final IOException e ) {
+			final InternalError error = new InternalError();
+			error.initCause( e );
+			throw error;
+
+		}
 	}
 
 	//////////////////////////// PRIVATE STUFF /////////////////////////////////
@@ -481,6 +471,16 @@ public class IddeaComponent extends JPanel {
 	 */
 	public void addToolBarSeparator() {
 		tb.addSeparator();
+	}
+
+	/**
+	 * Update the realRandomSource with new source.
+	 * 
+	 * @param source
+	 */
+	private void updateDoubleTypeSourceAndConverter( final RealRandomAccessible source, final RealARGBConverter converter ) {
+		interactiveViewer2D.updateConverter( converter );
+		interactiveViewer2D.updateSource( source );
 	}
 
 }
