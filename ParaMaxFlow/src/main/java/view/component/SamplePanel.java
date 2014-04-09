@@ -1,6 +1,6 @@
 package view.component;
 
-import controller.tool.SpimTool;
+import controller.tool.DefaultBezierTool;
 import ij.ImagePlus;
 import ij.io.Opener;
 import model.figure.DrawFigureFactory;

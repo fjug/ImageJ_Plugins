@@ -41,7 +41,7 @@ public abstract class InteractiveRealViewer< T, A extends AffineSet & AffineGet 
 	/**
 	 * Transformation set by the interactive viewer.
 	 */
-	final protected A viewerTransform;
+	private final A viewerTransform;
 
 	/**
 	 * Canvas used for displaying the rendered {@link #screenImages screen image}.
@@ -112,7 +112,7 @@ public abstract class InteractiveRealViewer< T, A extends AffineSet & AffineGet 
     {
         this.source = source;
         ((InjectableMultiResolutionRenderer) imageRenderer).injectSource(source);
-        imageRenderer.paint( viewerTransform );
+        imageRenderer.paint( getViewerTransform() );
         display.repaint();
     }
 	/**
@@ -121,7 +121,7 @@ public abstract class InteractiveRealViewer< T, A extends AffineSet & AffineGet 
 	@Override
 	public void paint()
 	{
-		imageRenderer.paint( viewerTransform );
+		imageRenderer.paint( getViewerTransform() );
 		display.repaint();
 	}
 
@@ -129,7 +129,7 @@ public abstract class InteractiveRealViewer< T, A extends AffineSet & AffineGet 
 	@Override
 	public void transformChanged( final A transform )
 	{
-		transformType.set( viewerTransform, transform );
+		transformType.set( getViewerTransform(), transform );
 		requestRepaint();
 	}
 
@@ -168,4 +168,11 @@ public abstract class InteractiveRealViewer< T, A extends AffineSet & AffineGet 
     public RealRandomAccessible<T> getSource() {
         return source;
     }
+
+	/**
+	 * @return the viewerTransform
+	 */
+	public A getViewerTransform() {
+		return viewerTransform;
+	}
 }

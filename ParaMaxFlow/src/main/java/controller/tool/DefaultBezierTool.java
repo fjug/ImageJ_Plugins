@@ -17,7 +17,7 @@ import view.display.JHotDrawInteractiveDisplay2D;
  * @author HongKee Moon
  */
 
-public class SpimTool extends AbstractTool {
+public class DefaultBezierTool extends AbstractTool {
 
     public void mouseDragged(MouseEvent arg0) {
         // TODO Auto-generated method stub

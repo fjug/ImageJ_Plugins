@@ -47,15 +47,16 @@ import net.imglib2.img.Img;
 import net.imglib2.img.display.imagej.ImageJFunctions;
 import net.imglib2.type.numeric.integer.LongType;
 import net.imglib2.type.numeric.real.DoubleType;
+import net.imglib2.util.Util;
 import net.imglib2.view.Views;
 import view.component.IddeaComponent;
 
 import com.jug.fkt.Function1D;
 import com.jug.fkt.FunctionComposerDialog;
+import com.jug.fkt.SampledFunction1D;
 import com.jug.segmentation.SegmentationMagic;
+import com.jug.util.IddeaUtil;
 import com.jug.util.converter.RealDoubleNormalizeConverter;
-
-import controller.action.HistogramToolAction;
 
 /**
  * @author jug
@@ -92,7 +93,7 @@ public class ParaMaxFlowPanel extends JPanel implements ActionListener, ChangeLi
 	private JButton bSetPairwiseIsing;
 	private JButton bSetPairwiseEdge;
 
-	private JButton bHistogram;
+	private JButton bShowHistogram;
 
 	private JButton bLoadClassifier;
 	private JToggleButton bUseClassifier;
@@ -129,18 +130,13 @@ public class ParaMaxFlowPanel extends JPanel implements ActionListener, ChangeLi
 		this.imgSegmentation = null;
 
 		this.icOrig = new IddeaComponent( Views.interval( imgOrigNorm, imgOrigNorm ) );
-		// THIS WORKS
-		this.icClass = new IddeaComponent( Views.interval( imgOrigNorm, imgOrigNorm ) );
-		this.icSumImg = new IddeaComponent( Views.interval( imgOrigNorm, imgOrigNorm ) );
-		this.icSeg = new IddeaComponent( Views.interval( imgOrigNorm, imgOrigNorm ) );
-		// THIS SHOULD WORK
-//		this.icClass = new IddeaComponent();
-//		this.icSumImg = new IddeaComponent();
-//		this.icSeg = new IddeaComponent();
+		this.icClass = new IddeaComponent();
+		this.icSumImg = new IddeaComponent();
+		this.icSeg = new IddeaComponent();
 
 		buildGui();
 
-		frame.setSize( 800, 600 );
+		this.frame.setSize( 1200, 1024 );
 	}
 
 	private void buildGui() {
@@ -149,20 +145,24 @@ public class ParaMaxFlowPanel extends JPanel implements ActionListener, ChangeLi
 		// ****************************************************************************************
 		// *** IMAGE VIEWER
 		// ****************************************************************************************
+		this.icOrig.installSegmentationToolBar();
 		this.icOrig.setToolBarLocation( BorderLayout.WEST );
 		this.icOrig.setToolBarVisible( true );
 		this.icOrig.setPreferredSize( new Dimension( imgPlus.getWidth(), imgPlus.getHeight() ) );
 
+		this.icClass.installMinimalToolBar();
 		this.icClass.setToolBarLocation( BorderLayout.WEST );
-		this.icClass.setToolBarVisible( false );
+		this.icClass.setToolBarVisible( true );
 		this.icClass.setPreferredSize( new Dimension( imgPlus.getWidth(), imgPlus.getHeight() ) );
 
+		this.icSumImg.installMinimalToolBar();
 		this.icSumImg.setToolBarLocation( BorderLayout.WEST );
-		this.icSumImg.setToolBarVisible( false );
+		this.icSumImg.setToolBarVisible( true );
 		this.icSumImg.setPreferredSize( new Dimension( imgPlus.getWidth(), imgPlus.getHeight() ) );
 
+		this.icSeg.installMinimalToolBar();
 		this.icSeg.setToolBarLocation( BorderLayout.WEST );
-		this.icSeg.setToolBarVisible( false );
+		this.icSeg.setToolBarVisible( true );
 		this.icSeg.setPreferredSize( new Dimension( imgPlus.getWidth(), imgPlus.getHeight() ) );
 		sliderSegmentation = new JSlider( 0, 0 );
 		sliderSegmentation.addChangeListener( this );
@@ -194,8 +194,8 @@ public class ParaMaxFlowPanel extends JPanel implements ActionListener, ChangeLi
 		bCompute = new JButton( "GO FOR IT" );
 		bCompute.addActionListener( this );
 
-		bHistogram = new JButton( "Histogram" );
-		bHistogram.addActionListener( new HistogramToolAction( icOrig.getCurrentInteractiveViewer2D() ) );
+		bShowHistogram = new JButton( "show histogram" );
+		bShowHistogram.addActionListener( this );
 
 		bLoadClassifier = new JButton( "load class." );
 		bLoadClassifier.addActionListener( this );
@@ -217,13 +217,19 @@ public class ParaMaxFlowPanel extends JPanel implements ActionListener, ChangeLi
 		costPlots.setPreferredSize( new Dimension( 500, 500 ) );
 		tabCosts.add( costPlots, BorderLayout.CENTER );
 
-		tabsViews.addTab( "raw data", icOrig );
+		JPanel help = new JPanel( new BorderLayout() );
+		help.add( icOrig, BorderLayout.CENTER );
+		help.add( bShowHistogram, BorderLayout.SOUTH );
+		tabsViews.addTab( "raw data", help );
+
 		tabsViews.addTab( "classif.", icClass );
 		tabsViews.addTab( "sum img", icSumImg );
-		final JPanel help = new JPanel( new BorderLayout() );
+
+		help = new JPanel( new BorderLayout() );
 		help.add( icSeg, BorderLayout.CENTER );
 		help.add( sliderSegmentation, BorderLayout.SOUTH );
 		tabsViews.addTab( "segm. hyp.", help );
+
 		tabsViews.addTab( "cost fkts", tabCosts );
 
 		add( textIntro, BorderLayout.NORTH );
@@ -238,7 +244,6 @@ public class ParaMaxFlowPanel extends JPanel implements ActionListener, ChangeLi
 		pUpperControls.add( bExportSumImg );
 
 		pLowerControls.add( bSetUnaries );
-		pLowerControls.add( bHistogram );
 		pLowerControls.add( bSetPairwiseIsing );
 		pLowerControls.add( bSetPairwiseEdge );
 		pLowerControls.add( Box.createHorizontalGlue() );
@@ -279,7 +284,7 @@ public class ParaMaxFlowPanel extends JPanel implements ActionListener, ChangeLi
 					bUseClassifier.doClick();
 				}
 				if ( e.getActionCommand().equals( "1" ) ) {
-					tabsViews.setSelectedComponent( icOrig );
+					tabsViews.setSelectedComponent( icOrig.getParent() );
 				}
 				if ( e.getActionCommand().equals( "2" ) ) {
 					tabsViews.setSelectedComponent( icClass );
@@ -459,7 +464,19 @@ public class ParaMaxFlowPanel extends JPanel implements ActionListener, ChangeLi
 
 		} else if ( e.getSource().equals( bExportSumImg ) ) {
 			ImageJFunctions.show( this.imgSumLong );
+
+		} else if ( e.getSource().equals( bShowHistogram ) ) {
+			if ( LongType.class.isInstance( Util.getTypeFromRealRandomAccess( icOrig.getInteractiveViewer2D().getSource() ) ) || DoubleType.class.isInstance( Util.getTypeFromRealRandomAccess( icOrig.getInteractiveViewer2D().getSource() ) ) ) {
+
+				final SampledFunction1D fHist = IddeaUtil.getHistogramFromInteractiveViewer( icOrig, 0, 1, 100 );
+				fHist.normalizeMax();
+				SegmentationMagic.setFktUnary( fHist );
+				updateCostPlots();
+			} else {
+				JOptionPane.showMessageDialog( this.getRootPane(), "Histogram can only be created for images of pixel-types 'LongType' or 'DoubleType'." );
+			}
 		}
+
 	}
 
 	/**

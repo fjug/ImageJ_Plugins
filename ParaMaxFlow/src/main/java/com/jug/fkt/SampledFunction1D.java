@@ -65,4 +65,30 @@ public class SampledFunction1D implements Function1D< Double > {
 		return y;
 	}
 
+	/**
+	 * Normalizes this function to that the sum of all give y-values sums to 1.
+	 */
+	public void normalizeToDist() {
+		double sum = 0.0;
+		for ( final double d : y ) {
+			sum += d;
+		}
+		for ( int i = 0; i < y.size(); i++ ) {
+			y.set( i, y.get( i ) / sum );
+		}
+	}
+
+	/**
+	 * Normalizes this function so that the maximal value is going to be 1.
+	 */
+	public void normalizeMax() {
+		double max = Double.MIN_VALUE;
+		for ( final double d : y ) {
+			if ( d > max ) max = d;
+		}
+		for ( int i = 0; i < y.size(); i++ ) {
+			y.set( i, y.get( i ) / max );
+		}
+	}
+
 }

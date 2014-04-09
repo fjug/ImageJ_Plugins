@@ -16,14 +16,12 @@ import javax.swing.JToolBar;
 import javax.swing.SwingUtilities;
 
 import model.figure.DrawFigureFactory;
-import net.imglib2.IterableInterval;
 import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.RealRandomAccessible;
 import net.imglib2.converter.RealARGBConverter;
 import net.imglib2.interpolation.randomaccess.NearestNeighborInterpolatorFactory;
 import net.imglib2.realtransform.AffineTransform2D;
 import net.imglib2.type.NativeType;
-import net.imglib2.type.Type;
 import net.imglib2.type.numeric.RealType;
 import net.imglib2.type.numeric.integer.LongType;
 import net.imglib2.type.numeric.real.DoubleType;
@@ -48,7 +46,7 @@ import view.viewer.InteractiveRealViewer2D;
 
 import com.jug.util.ImglibUtil;
 
-import controller.tool.SpimTool;
+import controller.tool.DefaultBezierTool;
 
 /**
  * Created with IntelliJ IDEA.
@@ -62,14 +60,14 @@ public class IddeaComponent extends JPanel {
 	private static final long serialVersionUID = -3808140519052170304L;
 
 	/**
-	 * It holds the current interactive viewer 2d
+	 * InteractiveViewer2D for the imglib2 image to be shown.
 	 */
-	private InteractiveRealViewer2D< ? > currentInteractiveViewer2D;
+	private InteractiveRealViewer2D< DoubleType > interactiveViewer2D;
 
 	private DrawingEditor editor;
 	private String toolbarLocation;
 	private boolean toolbarVisible = false;
-	private IntervalView< DoubleType > intervalViewDoubleType = null;
+	private IntervalView< DoubleType > ivSourceImage = null;
 
 	private JToolBar tb;
 	private JScrollPane scrollPane;
@@ -90,9 +88,9 @@ public class IddeaComponent extends JPanel {
 		view.setDrawing( createDrawing() );
 	}
 
-	public IddeaComponent( final IntervalView< DoubleType > viewImg ) {
+	public IddeaComponent( final IntervalView< DoubleType > sourceImage ) {
 
-		this.intervalViewDoubleType = viewImg;
+		this.ivSourceImage = sourceImage;
 
 		editor = new DefaultDrawingEditor();
 		createToolbar();
@@ -107,8 +105,8 @@ public class IddeaComponent extends JPanel {
 		view.setDrawing( createDrawing() );
 	}
 
-	public InteractiveRealViewer2D getCurrentInteractiveViewer2D() {
-		return currentInteractiveViewer2D;
+	public InteractiveRealViewer2D< DoubleType > getInteractiveViewer2D() {
+		return interactiveViewer2D;
 	}
 
 	public InteractiveDrawingView getInteractiveDrawingView( final IntervalView< DoubleType > viewImg ) {
@@ -122,16 +120,16 @@ public class IddeaComponent extends JPanel {
 			final RealRandomAccessible< DoubleType > interpolated = Views.interpolate( Views.extendZero( viewImg ), new NearestNeighborInterpolatorFactory< DoubleType >() );
 			final RealARGBConverter< DoubleType > converter = new RealARGBConverter< DoubleType >( min.get(), max.get() );
 
-			currentInteractiveViewer2D = new InteractiveRealViewer2D< DoubleType >( ( int ) viewImg.max( 0 ), ( int ) viewImg.max( 1 ), interpolated, transform, converter );
+			interactiveViewer2D = new InteractiveRealViewer2D< DoubleType >( ( int ) viewImg.max( 0 ), ( int ) viewImg.max( 1 ), interpolated, transform, converter );
 		} else {
 			final AffineTransform2D transform = new AffineTransform2D();
 			final RealRandomAccessible< DoubleType > dummy = new DummyRealRandomAccessible();
 			final RealARGBConverter< DoubleType > converter = new RealARGBConverter< DoubleType >( 0, 0 );
 
-			currentInteractiveViewer2D = new InteractiveRealViewer2D< DoubleType >( 300, 200, dummy, transform, converter );
+			interactiveViewer2D = new InteractiveRealViewer2D< DoubleType >( 300, 200, dummy, transform, converter );
 		}
 
-		return currentInteractiveViewer2D.getJHotDrawDisplay();
+		return interactiveViewer2D.getJHotDrawDisplay();
 	}
 
 	/**
@@ -163,48 +161,68 @@ public class IddeaComponent extends JPanel {
 	private void createToolbar() {
 		final ResourceBundleUtil labels = ResourceBundleUtil.getBundle( "org.jhotdraw.draw.Labels" );
 
-		tb = new JToolBar();
-		tb.setOrientation( JToolBar.HORIZONTAL );
+		this.tb = new JToolBar();
+		this.tb.setOrientation( JToolBar.HORIZONTAL );
 
-		addCreationButtonsTo( tb, editor );
 		tb.setName( labels.getString( "window.drawToolBar.title" ) );
 	}
 
-	private void addCreationButtonsTo( final JToolBar tb, final DrawingEditor editor ) {
-		addDefaultCreationButtonsTo( tb, editor, ButtonFactory.createDrawingActions( editor ), ButtonFactory.createSelectionActions( editor ) );
+	public void installSegmentationToolBar() {
+		this.tb.removeAll();
+		installDefaultToolBar( this.tb, this.editor, ButtonFactory.createDrawingActions( editor ), ButtonFactory.createSelectionActions( editor ) );
 	}
 
-	public void addDefaultCreationButtonsTo( final JToolBar tb, final DrawingEditor editor, final Collection< Action > drawingActions, final Collection< Action > selectionActions ) {
+	public void installMinimalToolBar() {
+		this.tb.removeAll();
+		installMinimalToolBar( this.tb, this.editor, ButtonFactory.createDrawingActions( editor ), ButtonFactory.createSelectionActions( editor ) );
+	}
+
+	private void installMinimalToolBar( final JToolBar tb, final DrawingEditor editor, final Collection< Action > drawingActions, final Collection< Action > selectionActions ) {
 
 		ButtonFactory.addSelectionToolTo( tb, editor, drawingActions, selectionActions );
 
 		final ResourceBundleUtil labels = ResourceBundleUtil.getBundle( "model.Labels" );
-		ButtonFactory.addToolTo( tb, editor, new SpimTool(), "edit.createSpim", labels );
+		ButtonFactory.addToolTo( tb, editor, new DefaultBezierTool(), "edit.createSpim", labels );
+	}
+
+	private void installDefaultToolBar( final JToolBar tb, final DrawingEditor editor, final Collection< Action > drawingActions, final Collection< Action > selectionActions ) {
+
+		ButtonFactory.addSelectionToolTo( tb, editor, drawingActions, selectionActions );
+
+		final ResourceBundleUtil labels = ResourceBundleUtil.getBundle( "model.Labels" );
+		ButtonFactory.addToolTo( tb, editor, new DefaultBezierTool(), "edit.createSpim", labels );
 
 		tb.addSeparator();
 
-		final HashMap< AttributeKey, Object > a = new HashMap< AttributeKey, Object >();
-		org.jhotdraw.draw.AttributeKeys.FILL_COLOR.put( a, new Color( 0.0f, 1.0f, 0.0f, 0.1f ) );
-		org.jhotdraw.draw.AttributeKeys.STROKE_COLOR.put( a, new Color( 1.0f, 0.0f, 0.0f, 0.33f ) );
-		ButtonFactory.addToolTo( tb, editor, new BezierTool( new BezierFigure( true ), a ), "edit.createPolygon", ResourceBundleUtil.getBundle( "org.jhotdraw.draw.Labels" ) );
+		final HashMap< AttributeKey, Object > polygon = new HashMap< AttributeKey, Object >();
+		org.jhotdraw.draw.AttributeKeys.FILL_COLOR.put( polygon, new Color( 0.0f, 0.0f, 1.0f, 0.1f ) );
+		org.jhotdraw.draw.AttributeKeys.STROKE_COLOR.put( polygon, new Color( 0.0f, 0.0f, 1.0f, 0.33f ) );
+		ButtonFactory.addToolTo( tb, editor, new BezierTool( new BezierFigure( true ), polygon ), "edit.createPolygon", ResourceBundleUtil.getBundle( "org.jhotdraw.draw.Labels" ) );
 
 		final HashMap< AttributeKey, Object > foreground = new HashMap< AttributeKey, Object >();
-		org.jhotdraw.draw.AttributeKeys.STROKE_COLOR.put( foreground, new Color( 1.0f, 0.0f, 0.0f, 0.33f ) );
+		org.jhotdraw.draw.AttributeKeys.STROKE_COLOR.put( foreground, new Color( 0.0f, 1.0f, 0.0f, 0.25f ) );
 		org.jhotdraw.draw.AttributeKeys.STROKE_WIDTH.put( foreground, 15d );
 		ButtonFactory.addToolTo( tb, editor, new BezierTool( new BezierFigure(), foreground ), "edit.scribbleForeground", labels );
 
 		final HashMap< AttributeKey, Object > background = new HashMap< AttributeKey, Object >();
-		org.jhotdraw.draw.AttributeKeys.STROKE_COLOR.put( background, new Color( 0.0f, 0.0f, 1.0f, 0.33f ) );
+		org.jhotdraw.draw.AttributeKeys.STROKE_COLOR.put( background, new Color( 1.0f, 0.0f, 0.0f, 0.25f ) );
 		org.jhotdraw.draw.AttributeKeys.STROKE_WIDTH.put( background, 15d );
 		ButtonFactory.addToolTo( tb, editor, new BezierTool( new BezierFigure(), background ), "edit.scribbleBackground", labels );
 
-		tb.add( ButtonFactory.createStrokeWidthButton( editor, new double[] { 5d, 10d, 15d }, ResourceBundleUtil.getBundle( "org.jhotdraw.draw.Labels" ) ) );
+		tb.add( ButtonFactory.createStrokeWidthButton( editor, new double[] { 1d, 5d, 10d, 15d, 30d }, ResourceBundleUtil.getBundle( "org.jhotdraw.draw.Labels" ) ) );
+
+//		tb.addSeparator();
+//
+//		final HashMap< AttributeKey, Object > save = new HashMap< AttributeKey, Object >();
+//		org.jhotdraw.draw.AttributeKeys.FILL_COLOR.put( save, new Color( 0.0f, 1.0f, 0.0f, 0.1f ) );
+//		org.jhotdraw.draw.AttributeKeys.STROKE_COLOR.put( save, new Color( 1.0f, 0.0f, 0.0f, 0.33f ) );
+//		ButtonFactory.addToolTo( tb, editor, new  );
 	}
 
 	private void initComponents() {
 		scrollPane = new javax.swing.JScrollPane();
 
-		view = getInteractiveDrawingView( intervalViewDoubleType );
+		view = getInteractiveDrawingView( ivSourceImage );
 
 		setLayout( new java.awt.BorderLayout() );
 
@@ -380,49 +398,35 @@ public class IddeaComponent extends JPanel {
 	}
 
 	/**
+	 * Returns the current screen image.
+	 * 
+	 * @return
+	 */
+	public IntervalView< DoubleType > getSourceImage() {
+		return this.ivSourceImage;
+	}
+
+	/**
 	 * Update the realRandomSource with new source.
 	 * 
 	 * @param source
 	 */
 	public void updateDoubleTypeSourceAndConverter( final RealRandomAccessible source, final RealARGBConverter converter ) {
-		currentInteractiveViewer2D.updateConverter( converter );
-		currentInteractiveViewer2D.updateSource( source );
+		interactiveViewer2D.updateConverter( converter );
+		interactiveViewer2D.updateSource( source );
 	}
-
-	private static < T extends Type< T > & Comparable< T > > void getMinMax( final IterableInterval< T > source, final T minValue, final T maxValue ) {
-		for ( final T t : source )
-			if ( minValue.compareTo( t ) > 0 )
-				minValue.set( t );
-			else if ( maxValue.compareTo( t ) < 0 ) maxValue.set( t );
-	}
-
-//    public < T extends RealType< T > & NativeType< T >> InteractiveViewer2D show( final Img<T> interval ) {
-//        final AffineTransform2D transform = new AffineTransform2D();
-//        InteractiveViewer2D iview = null;
-//
-//        System.out.println(interval.firstElement().getClass());
-//
-//
-//        {
-//            final T min = Views.iterable( interval ).firstElement().copy();
-//            final T max = min.copy();
-//            getMinMax( Views.iterable( interval ), min, max );
-//
-////            RealRandomAccessible< T > interpolated = Views.interpolate( interval, new NLinearInterpolatorFactory<T>() );
-//            RealRandomAccessible< T > interpolated = Views.interpolate( Views.extendZero(interval), new NearestNeighborInterpolatorFactory<T>() );
-//            //final RealARGBConverter< T > converter = new RealARGBConverter< T >( min.getMinValue(), max.getMaxValue());
-//
-//            final LUTConverter< T > converter = new LUTConverter< T >( min.getMinValue(), max.getMaxValue(), ColorTables.FIRE);
-//            iview = new InteractiveViewer2D<T>((int)interval.max(0), (int)interval.max(1), Views.extendZero(interval), transform, converter);
-//        }
-//
-//        return iview;
-//    }
 
 	@Override
 	public void setPreferredSize( final Dimension dim ) {
-		currentInteractiveViewer2D.getJHotDrawDisplay().setPreferredSize( dim );
+		interactiveViewer2D.getJHotDrawDisplay().setPreferredSize( dim );
 	}
-	// End of variables declaration//GEN-END:variables
+
+	/**
+	 * @return The <code>AffineTransform2D</code> describing the transformation
+	 *         of the <code>ivSourceImage</code> on screen.
+	 */
+	public AffineTransform2D getViewerTransform() {
+		return getInteractiveViewer2D().getViewerTransform();
+	}
 
 }
