@@ -18,7 +18,6 @@ import net.imglib2.view.Views;
 import com.jug.fkt.Constant1D;
 import com.jug.fkt.Function1D;
 
-
 /**
  * @author jug
  */
@@ -39,6 +38,14 @@ public class SegmentationMagic {
 		wekaClassifier = new SilentWekaSegmenter< DoubleType >( folder, file );
 	}
 
+	public static void setClassifier( final SilentWekaSegmenter< DoubleType > classifier ) {
+		wekaClassifier = classifier;
+	}
+
+	public static SilentWekaSegmenter< DoubleType > getClassifier() {
+		return wekaClassifier;
+	}
+
 	public static RandomAccessibleInterval< DoubleType > returnClassification( final RandomAccessibleInterval< DoubleType > rai ) {
 		lastClassified = wekaClassifier.classifyPixels( rai, true );
 
@@ -57,16 +64,14 @@ public class SegmentationMagic {
 		return subsampleGapClass;
 	}
 
+	/**
+	 * 
+	 * @param rai
+	 * @param withClassificationOfGaps
+	 * @return
+	 */
 	private static RandomAccessibleInterval< LongType > returnParamaxflowBaby( final RandomAccessibleInterval< DoubleType > rai, final boolean withClassificationOfGaps ) {
-		final ParaMaxFlow< DoubleType > paramaxflow = new ParaMaxFlow< DoubleType >(
-				 rai,
-				 ( withClassificationOfGaps ) ? returnClassification( rai ) : null,
-				 false,
-				 fktUnary,
-				 costIsing,
-				 fktPairwiseX,
-				 fktPairwiseY,
-				 fktPairwiseZ );
+		final ParaMaxFlow< DoubleType > paramaxflow = new ParaMaxFlow< DoubleType >( rai, ( withClassificationOfGaps ) ? returnClassification( rai ) : null, false, fktUnary, costIsing, fktPairwiseX, fktPairwiseY, fktPairwiseZ );
 
 		numSolutions = paramaxflow.solve( -1000000, 1000000 );
 
@@ -75,25 +80,37 @@ public class SegmentationMagic {
 		return sumRegions;
 	}
 
-	private static RandomAccessibleInterval< LongType > returnParamaxflowBaby( final RandomAccessibleInterval< DoubleType > rai, final RandomAccessibleInterval< LongType > classRai ) {
-		final ParaMaxFlow< DoubleType > paramaxflow = new ParaMaxFlow< DoubleType >(
-				 rai,
-				 classRai,
-				 false,
-				 fktUnary,
-				 costIsing,
-				 fktPairwiseX,
-				 fktPairwiseY,
-				 fktPairwiseZ );
+	/**
+	 * 
+	 * @param rai
+	 * @param unaryCostFactor
+	 * @param unaryPotentialImage
+	 * @param isingCost
+	 * @param pairwisePotentialImage
+	 * @return
+	 */
+	private static RandomAccessibleInterval< LongType > returnParamaxflowBaby( final RandomAccessibleInterval< DoubleType > rai, final double unaryCostFactor, final RandomAccessibleInterval< DoubleType > unaryPotentialImage, final double isingCost, final RandomAccessibleInterval< DoubleType > pairwisePotentialImage ) {
+		final ParaMaxFlow< DoubleType > paramaxflow = new ParaMaxFlow< DoubleType >( rai, false, unaryCostFactor, unaryPotentialImage, isingCost, pairwisePotentialImage );
 
 		numSolutions = paramaxflow.solve( -1000000, 1000000 );
 
 		final Img< LongType > sumRegions = paramaxflow.getRegionsImg();
 
-//		ImageJFunctions.show( paramaxflow.getUnariesImg() );
-//		ImageJFunctions.show( paramaxflow.getBinariesInXImg() );
-//		ImageJFunctions.show( paramaxflow.getBinariesInYImg() );
-//		ImageJFunctions.show( sumRegions );
+		return sumRegions;
+	}
+
+	/**
+	 * 
+	 * @param rai
+	 * @param classRai
+	 * @return
+	 */
+	private static RandomAccessibleInterval< LongType > returnParamaxflowBaby( final RandomAccessibleInterval< DoubleType > rai, final RandomAccessibleInterval< LongType > classRai ) {
+		final ParaMaxFlow< DoubleType > paramaxflow = new ParaMaxFlow< DoubleType >( rai, classRai, false, fktUnary, costIsing, fktPairwiseX, fktPairwiseY, fktPairwiseZ );
+
+		numSolutions = paramaxflow.solve( -1000000, 1000000 );
+
+		final Img< LongType > sumRegions = paramaxflow.getRegionsImg();
 
 		return sumRegions;
 	}
@@ -124,12 +141,35 @@ public class SegmentationMagic {
 		return ret;
 	}
 
-	public static RandomAccessibleInterval< LongType > returnParamaxflowRegionSums( final RandomAccessibleInterval< DoubleType > rai ) {
+	/**
+	 * 
+	 * @param rai
+	 * @return
+	 */
+	public static RandomAccessibleInterval< LongType > returnFunctionPotentialBasedParamaxflowRegionSums( final RandomAccessibleInterval< DoubleType > rai ) {
 		return returnParamaxflowBaby( rai, false );
 	}
 
-	public static RandomAccessibleInterval< LongType > returnClassificationBoostedParamaxflowRegionSums( final RandomAccessibleInterval< DoubleType > rai, final RandomAccessibleInterval< DoubleType > classRai ) {
+	/**
+	 * 
+	 * @param rai
+	 * @param classRai
+	 * @return
+	 */
+	public static RandomAccessibleInterval< LongType > returnClassificationModulatedParamaxflowRegionSums( final RandomAccessibleInterval< DoubleType > rai, final RandomAccessibleInterval< DoubleType > classRai ) {
 		return returnParamaxflowBaby( rai, true );
+	}
+
+	/**
+	 * @param rai
+	 * @param unariesMaxValue
+	 * @param imgUnaryCostImage
+	 * @param isingCosts
+	 * @param imgPairwiseCostImage
+	 * @return
+	 */
+	public static RandomAccessibleInterval< LongType > returnPotentialImageBasedParamaxflowRegionSums( final RandomAccessibleInterval< DoubleType > rai, final double unariesMaxValue, final RandomAccessibleInterval< DoubleType > imgUnaryCostImage, final double isingCosts, final RandomAccessibleInterval< DoubleType > imgPairwiseCostImage ) {
+		return returnParamaxflowBaby( rai, unariesMaxValue, imgUnaryCostImage, isingCosts, imgPairwiseCostImage );
 	}
 
 	public static long getNumSolutions() {
@@ -148,7 +188,8 @@ public class SegmentationMagic {
 	}
 
 	/**
-	 * @param fktUnary the fktUnary to set
+	 * @param fktUnary
+	 *            the fktUnary to set
 	 */
 	public static void setFktUnary( final Function1D< Double > fktUnary ) {
 		SegmentationMagic.fktUnary = fktUnary;
@@ -162,7 +203,8 @@ public class SegmentationMagic {
 	}
 
 	/**
-	 * @param fktPairwiseX the fktPairwiseX to set
+	 * @param fktPairwiseX
+	 *            the fktPairwiseX to set
 	 */
 	public static void setFktPairwiseX( final Function1D< Double > fktPairwiseX ) {
 		SegmentationMagic.fktPairwiseX = fktPairwiseX;
@@ -176,7 +218,8 @@ public class SegmentationMagic {
 	}
 
 	/**
-	 * @param fktPairwiseY the fktPairwiseY to set
+	 * @param fktPairwiseY
+	 *            the fktPairwiseY to set
 	 */
 	public static void setFktPairwiseY( final Function1D< Double > fktPairwiseY ) {
 		SegmentationMagic.fktPairwiseY = fktPairwiseY;
@@ -190,7 +233,8 @@ public class SegmentationMagic {
 	}
 
 	/**
-	 * @param fktPairwiseZ the fktPairwiseZ to set
+	 * @param fktPairwiseZ
+	 *            the fktPairwiseZ to set
 	 */
 	public static void setFktPairwiseZ( final Function1D< Double > fktPairwiseZ ) {
 		SegmentationMagic.fktPairwiseZ = fktPairwiseZ;
@@ -204,9 +248,11 @@ public class SegmentationMagic {
 	}
 
 	/**
-	 * @param costIsing the costIsing to set
+	 * @param costIsing
+	 *            the costIsing to set
 	 */
 	public static void setCostIsing( final double costIsing ) {
 		SegmentationMagic.costIsing = costIsing;
 	}
+
 }

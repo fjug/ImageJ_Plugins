@@ -12,7 +12,6 @@ import java.awt.BorderLayout;
 import java.awt.Color;
 import java.awt.Dimension;
 import java.awt.Frame;
-import java.awt.GridLayout;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.io.File;
@@ -30,11 +29,13 @@ import javax.swing.BoxLayout;
 import javax.swing.JButton;
 import javax.swing.JFileChooser;
 import javax.swing.JFrame;
+import javax.swing.JLabel;
 import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.JSlider;
 import javax.swing.JTabbedPane;
 import javax.swing.JTextArea;
+import javax.swing.JTextField;
 import javax.swing.JToggleButton;
 import javax.swing.KeyStroke;
 import javax.swing.event.ChangeEvent;
@@ -65,6 +66,7 @@ import com.jug.fkt.Function1D;
 import com.jug.fkt.FunctionComposerDialog;
 import com.jug.fkt.SampledFunction1D;
 import com.jug.segmentation.SegmentationMagic;
+import com.jug.segmentation.SilentWekaSegmenter;
 import com.jug.util.IddeaUtil;
 import com.jug.util.converter.RealDoubleNormalizeConverter;
 
@@ -80,44 +82,61 @@ public class ParaMaxFlowPanel extends JPanel implements ActionListener, ChangeLi
 	private static ParaMaxFlowPanel main;
 
 	private static JFrame guiFrame;
-
 	private final Frame frame;
-
 	private final ImagePlus imgPlus;
-
 	private JTabbedPane tabsViews;
 
+	// IddeaCompontents for input and results + nested control elements
 	private final IddeaComponent icOrig;
-	private final IddeaComponent icClass;
+	private JButton bHistogramToUnaries;
+
 	private final IddeaComponent icSumImg;
-	private final IddeaComponent icSeg;
-	private CostFunctionPanel costPlots;
-
-	private JSlider sliderSegmentation;
-
-	private JButton bLoadCostFunctions;
-	private JButton bSaveCostFunctions;
-
 	private JButton bExportSumImg;
 
+	private final IddeaComponent icSeg;
+	private JSlider sliderSegmentation;
+	private JButton bExportCurrentSegmentation;
+	private long currSeg = -1;
+	private long numSols = -1;
+
+	// SETTING THE POTENTIALS
+	private JTabbedPane tabsPotentials;
+
+	// Potentials by functions (plus modulation)
+	private JTabbedPane tabsFunctionBasedPotentials;
+	private CostFunctionPanel costPlots;
+	private JButton bLoadCostFunctions;
+	private JButton bSaveCostFunctions;
 	private JButton bSetUnaries;
 	private JButton bSetPairwiseIsing;
 	private JButton bSetPairwiseEdge;
+	private final IddeaComponent icCostFunctionModulation;
+	private JButton bLoadCostModulationClassifier;
+	private JToggleButton bUseCostModulationClassifier;
+	private SilentWekaSegmenter< DoubleType > classifierCostsModulation;
 
-	private JButton bHistogramToUnaries;
+	// Potentials by classification
+	private JTabbedPane tabsClassificationBasedPotentials;
+	private final IddeaComponent icUnaryPotentials;
+	private JButton bLoadUnaryPotentialsClassifier;
+	private SilentWekaSegmenter< DoubleType > classifierUnaryCosts;
+	private JTextField txtClassifiedUnaryCostFactor;
+	private final IddeaComponent icPairwisePotentials;
+	private JButton bLoadPairwisePotentialsClassifier;
+	private SilentWekaSegmenter< DoubleType > classifierPairwiseCosts;
+	private JTextField txtCostClassifierIsing;
 
-	private JButton bLoadClassifier;
-	private JToggleButton bUseClassifier;
+	// Top level control buttons
 	private JButton bCompute;
 
+	// All the image container we need
 	private final RandomAccessibleInterval< DoubleType > imgOrig;     // original pixel values -- used for classification!
 	private final RandomAccessibleInterval< DoubleType > imgOrigNorm; // normalized pixel values -- used for everything else!
-	private RandomAccessibleInterval< DoubleType > imgClassified;
+	private RandomAccessibleInterval< DoubleType > imgCostModulationImage;
+	private RandomAccessibleInterval< DoubleType > imgUnaryCostImage;
+	private RandomAccessibleInterval< DoubleType > imgPairwiseCostImage;
 	private RandomAccessibleInterval< LongType > imgSumLong;
 	private RandomAccessibleInterval< LongType > imgSegmentation;
-
-	private long currSeg = -1;
-	private long numSols = -1;
 
 	private FunctionComposerDialog funcComposerUnaries;
 	private FunctionComposerDialog funcComposerPairwiseEdge;
@@ -140,14 +159,19 @@ public class ParaMaxFlowPanel extends JPanel implements ActionListener, ChangeLi
 		this.imgOrig = Converters.convert( Views.interval( temp, temp ), new RealDoubleNormalizeConverter( 1.0 ), new DoubleType() );
 		this.imgOrigNorm = Converters.convert( Views.interval( temp, temp ), new RealDoubleNormalizeConverter( imgPlus.getStatistics().max ), new DoubleType() );
 
-		this.imgClassified = null;
+		this.imgCostModulationImage = null;
+		this.imgUnaryCostImage = null;
+		this.imgPairwiseCostImage = null;
 		this.imgSumLong = null;
 		this.imgSegmentation = null;
 
 		this.icOrig = new IddeaComponent( Views.interval( imgOrigNorm, imgOrigNorm ) );
-		this.icClass = new IddeaComponent();
 		this.icSumImg = new IddeaComponent();
 		this.icSeg = new IddeaComponent();
+
+		this.icCostFunctionModulation = new IddeaComponent();
+		this.icUnaryPotentials = new IddeaComponent();
+		this.icPairwisePotentials = new IddeaComponent();
 
 		buildGui();
 
@@ -158,23 +182,23 @@ public class ParaMaxFlowPanel extends JPanel implements ActionListener, ChangeLi
 		this.tabsViews = new JTabbedPane();
 
 		// ****************************************************************************************
-		// *** IMAGE VIEWER
+		// *** IMAGE VIEWER and NESTED CONTROLS
 		// ****************************************************************************************
 		installSegmentationToolbar( this.icOrig );
 		icOrig.showMenu( true );
 		this.icOrig.setToolBarLocation( BorderLayout.WEST );
 		this.icOrig.setToolBarVisible( true );
 		this.icOrig.setPreferredSize( new Dimension( imgPlus.getWidth(), imgPlus.getHeight() ) );
-
-		this.icClass.installDefaultToolBar();
-		this.icClass.setToolBarLocation( BorderLayout.WEST );
-		this.icClass.setToolBarVisible( true );
-		this.icClass.setPreferredSize( new Dimension( imgPlus.getWidth(), imgPlus.getHeight() ) );
+		bHistogramToUnaries = new JButton( "set unary potentials from annotated pixels" );
+		bHistogramToUnaries.addActionListener( this );
 
 		this.icSumImg.installDefaultToolBar();
 		this.icSumImg.setToolBarLocation( BorderLayout.WEST );
 		this.icSumImg.setToolBarVisible( true );
 		this.icSumImg.setPreferredSize( new Dimension( imgPlus.getWidth(), imgPlus.getHeight() ) );
+		bExportSumImg = new JButton( "export to fiji" );
+		bExportSumImg.setEnabled( false );
+		bExportSumImg.addActionListener( this );
 
 		this.icSeg.installDefaultToolBar();
 		this.icSeg.setToolBarLocation( BorderLayout.WEST );
@@ -182,19 +206,23 @@ public class ParaMaxFlowPanel extends JPanel implements ActionListener, ChangeLi
 		this.icSeg.setPreferredSize( new Dimension( imgPlus.getWidth(), imgPlus.getHeight() ) );
 		sliderSegmentation = new JSlider( 0, 0 );
 		sliderSegmentation.addChangeListener( this );
+		bExportCurrentSegmentation = new JButton( "export to fiji" );
+		bExportCurrentSegmentation.setEnabled( false );
+		bExportCurrentSegmentation.addActionListener( this );
 
 		// ****************************************************************************************
-		// *** TEXTs AND CONTROLS
+		// *** POTENTIAL RELATED STUFF
 		// ****************************************************************************************
-		final JPanel pLowerControls = new JPanel();
-		pLowerControls.setLayout( new BoxLayout( pLowerControls, BoxLayout.LINE_AXIS ) );
-		final JPanel pUpperControls = new JPanel();
-		pUpperControls.setLayout( new BoxLayout( pUpperControls, BoxLayout.LINE_AXIS ) );
+		this.tabsPotentials = new JTabbedPane();
+		this.tabsFunctionBasedPotentials = new JTabbedPane();
+		this.tabsClassificationBasedPotentials = new JTabbedPane();
 
-		final JTextArea textIntro = new JTextArea( "" + "Thanks to Vladimir Kolmogorov for native parametric max-flow code.\n" + "Classification models can be generated using the 'Trainable WEKA Segmentation'-plugin.\n" + "Bugs, comments, feedback? jug@mpi-cbg.de" );
-		textIntro.setBackground( new JButton().getBackground() );
-		textIntro.setEditable( false );
-		textIntro.setBorder( BorderFactory.createEmptyBorder( 0, 2, 5, 2 ) );
+		// COST PANEL
+		// ----------
+		costPlots = new CostFunctionPanel();
+		costPlots.setFixedBoundsOnX( 0.0, 1.0 );
+		updateCostPlots();
+		costPlots.setPreferredSize( new Dimension( 500, 500 ) );
 
 		bLoadCostFunctions = new JButton( "load costs" );
 		bLoadCostFunctions.addActionListener( this );
@@ -207,80 +235,150 @@ public class ParaMaxFlowPanel extends JPanel implements ActionListener, ChangeLi
 		bSetPairwiseIsing.addActionListener( this );
 		bSetPairwiseEdge = new JButton( "edge prior" );
 		bSetPairwiseEdge.addActionListener( this );
-		bCompute = new JButton( "GO FOR IT" );
+
+		// COST MODULTATION CLASS.
+		// -----------------------
+		this.icCostFunctionModulation.installDefaultToolBar();
+		this.icCostFunctionModulation.setToolBarLocation( BorderLayout.WEST );
+		this.icCostFunctionModulation.setToolBarVisible( true );
+		this.icCostFunctionModulation.setPreferredSize( new Dimension( imgPlus.getWidth(), imgPlus.getHeight() ) );
+
+		bLoadCostModulationClassifier = new JButton( "load cost modulation classifier" );
+		bLoadCostModulationClassifier.addActionListener( this );
+		bUseCostModulationClassifier = new JToggleButton( "use it" );
+		bUseCostModulationClassifier.addActionListener( this );
+		bUseCostModulationClassifier.setEnabled( false );
+
+		// COST CLASSIFIER
+		// ---------------
+		this.icUnaryPotentials.installDefaultToolBar();
+		this.icUnaryPotentials.setToolBarLocation( BorderLayout.WEST );
+		this.icUnaryPotentials.setToolBarVisible( true );
+		this.icUnaryPotentials.setPreferredSize( new Dimension( imgPlus.getWidth(), imgPlus.getHeight() ) );
+		bLoadUnaryPotentialsClassifier = new JButton( "load unary potential classifier" );
+		bLoadUnaryPotentialsClassifier.addActionListener( this );
+		txtClassifiedUnaryCostFactor = new JTextField( "1.0", 5 );
+
+		this.icPairwisePotentials.installDefaultToolBar();
+		this.icPairwisePotentials.setToolBarLocation( BorderLayout.WEST );
+		this.icPairwisePotentials.setToolBarVisible( true );
+		this.icPairwisePotentials.setPreferredSize( new Dimension( imgPlus.getWidth(), imgPlus.getHeight() ) );
+		bLoadPairwisePotentialsClassifier = new JButton( "load pairwise potential classifier" );
+		bLoadPairwisePotentialsClassifier.addActionListener( this );
+		txtCostClassifierIsing = new JTextField( "0.0", 5 );
+
+		// ****************************************************************************************
+		// *** TOP LEVEL TEXTs AND CONTROLS
+		// ****************************************************************************************
+		final JPanel pControls = new JPanel();
+
+		final JTextArea textIntro = new JTextArea( "" + "Thanks to Vladimir Kolmogorov for native parametric max-flow code.\n" + "Classification models can be generated using the 'Trainable WEKA Segmentation'-plugin.\n" + "Bugs, comments, feedback? jug@mpi-cbg.de" );
+		textIntro.setBackground( new JButton().getBackground() );
+		textIntro.setEditable( false );
+		textIntro.setBorder( BorderFactory.createEmptyBorder( 0, 2, 5, 2 ) );
+
+		bCompute = new JButton( "start segmentation" );
 		bCompute.addActionListener( this );
 
-		bHistogramToUnaries = new JButton( "use annotations as unary potential" );
-		bHistogramToUnaries.addActionListener( this );
-
-		bLoadClassifier = new JButton( "load class." );
-		bLoadClassifier.addActionListener( this );
-		bUseClassifier = new JToggleButton( "use class." );
-		bUseClassifier.addActionListener( this );
-		bUseClassifier.setEnabled( false );
-
-		bExportSumImg = new JButton( "export sum-img" );
-		bExportSumImg.addActionListener( this );
-
 		// ****************************************************************************************
-		// *** COST PANEL
+		// *** PLUG ALL TOGETHER
 		// ****************************************************************************************
-		final JPanel tabCosts = new JPanel( new BorderLayout() );
-		// costPlots = new Plot2DPanel();
-		costPlots = new CostFunctionPanel();
-		costPlots.setFixedBoundsOnX( 0.0, 1.0 );
-		updateCostPlots();
-		costPlots.setPreferredSize( new Dimension( 500, 500 ) );
-		tabCosts.add( costPlots, BorderLayout.CENTER );
-
 		JPanel help = new JPanel( new BorderLayout() );
+
+		// top level tabs
+		// --------------
+		final JPanel pRawImageControls = new JPanel();
+		pRawImageControls.setLayout( new BoxLayout( pRawImageControls, BoxLayout.LINE_AXIS ) );
+		pRawImageControls.add( Box.createHorizontalGlue() );
+		pRawImageControls.add( bHistogramToUnaries );
+		pRawImageControls.add( Box.createHorizontalGlue() );
 		help.add( icOrig, BorderLayout.CENTER );
-		help.add( bHistogramToUnaries, BorderLayout.SOUTH );
+		help.add( pRawImageControls, BorderLayout.SOUTH );
 		tabsViews.addTab( "raw data", help );
 
-		tabsViews.addTab( "classif.", icClass );
-		tabsViews.addTab( "sum img", icSumImg );
+		tabsViews.addTab( "potentials", tabsPotentials );
 
 		help = new JPanel( new BorderLayout() );
+		final JPanel pSumImageControls = new JPanel();
+		pSumImageControls.setLayout( new BoxLayout( pSumImageControls, BoxLayout.LINE_AXIS ) );
+		pSumImageControls.add( Box.createHorizontalGlue() );
+		pSumImageControls.add( bExportSumImg );
+		pSumImageControls.add( Box.createHorizontalGlue() );
+		help.add( icSumImg, BorderLayout.CENTER );
+		help.add( pSumImageControls, BorderLayout.SOUTH );
+		tabsViews.addTab( "sum img", help );
+
+		help = new JPanel( new BorderLayout() );
+		final JPanel pSegmentationControls = new JPanel();
+		pSegmentationControls.setLayout( new BoxLayout( pSegmentationControls, BoxLayout.LINE_AXIS ) );
+		pSegmentationControls.add( Box.createHorizontalGlue() );
+		pSegmentationControls.add( sliderSegmentation );
+		pSegmentationControls.add( bExportCurrentSegmentation );
+		pSegmentationControls.add( Box.createHorizontalGlue() );
 		help.add( icSeg, BorderLayout.CENTER );
-		help.add( sliderSegmentation, BorderLayout.SOUTH );
+		help.add( pSegmentationControls, BorderLayout.SOUTH );
 		tabsViews.addTab( "segm. hyp.", help );
 
-		tabsViews.addTab( "cost fkts", tabCosts );
+		// potentials by function tabs
+		// ---------------------------
+		help = new JPanel( new BorderLayout() );
+		final JPanel pCostFunctionControls = new JPanel();
+		pCostFunctionControls.setLayout( new BoxLayout( pCostFunctionControls, BoxLayout.LINE_AXIS ) );
+		pCostFunctionControls.add( Box.createHorizontalGlue() );
+		pCostFunctionControls.add( bLoadCostFunctions );
+		pCostFunctionControls.add( bSaveCostFunctions );
+		pCostFunctionControls.add( Box.createHorizontalGlue() );
+		pCostFunctionControls.add( bSetUnaries );
+		pCostFunctionControls.add( bSetPairwiseIsing );
+		pCostFunctionControls.add( bSetPairwiseEdge );
+		pCostFunctionControls.add( Box.createHorizontalGlue() );
+		help.add( costPlots, BorderLayout.CENTER );
+		help.add( pCostFunctionControls, BorderLayout.SOUTH );
+		tabsFunctionBasedPotentials.addTab( "cost functions", help );
+
+		help = new JPanel( new BorderLayout() );
+		final JPanel pCostModulationControls = new JPanel();
+		pCostModulationControls.add( Box.createHorizontalGlue() );
+		pCostModulationControls.add( bLoadCostModulationClassifier );
+		pCostModulationControls.add( bUseCostModulationClassifier );
+		help.add( icCostFunctionModulation, BorderLayout.CENTER );
+		help.add( pCostModulationControls, BorderLayout.SOUTH );
+		tabsFunctionBasedPotentials.addTab( "cost modulation", help );
+		tabsPotentials.addTab( "function based", tabsFunctionBasedPotentials );
+
+		// potentials by classification tabs
+		// ---------------------------------
+		help = new JPanel( new BorderLayout() );
+		final JPanel pUnariesClassifierControls = new JPanel();
+		pUnariesClassifierControls.add( Box.createHorizontalGlue() );
+		pUnariesClassifierControls.add( bLoadUnaryPotentialsClassifier );
+		pUnariesClassifierControls.add( Box.createHorizontalGlue() );
+		pUnariesClassifierControls.add( new JLabel( "Normalize maxval to:" ) );
+		pUnariesClassifierControls.add( this.txtClassifiedUnaryCostFactor );
+		help.add( icUnaryPotentials, BorderLayout.CENTER );
+		help.add( pUnariesClassifierControls, BorderLayout.SOUTH );
+		tabsClassificationBasedPotentials.addTab( "unaries", help );
+		help = new JPanel( new BorderLayout() );
+		final JPanel pPairwiseClassifierControls = new JPanel();
+		pPairwiseClassifierControls.add( Box.createHorizontalGlue() );
+		pPairwiseClassifierControls.add( bLoadPairwisePotentialsClassifier );
+		pPairwiseClassifierControls.add( Box.createHorizontalGlue() );
+		pPairwiseClassifierControls.add( new JLabel( "Ising cost:" ) );
+		pPairwiseClassifierControls.add( this.txtCostClassifierIsing );
+		help.add( icPairwisePotentials, BorderLayout.CENTER );
+		help.add( pPairwiseClassifierControls, BorderLayout.SOUTH );
+		tabsClassificationBasedPotentials.addTab( "pairwise", help );
+		tabsPotentials.addTab( "classif. based", tabsClassificationBasedPotentials );
 
 		add( textIntro, BorderLayout.NORTH );
 		add( tabsViews, BorderLayout.CENTER );
 
-		pUpperControls.add( bLoadCostFunctions );
-		pUpperControls.add( bSaveCostFunctions );
-		pUpperControls.add( Box.createHorizontalGlue() );
-		pUpperControls.add( bLoadClassifier );
-		pUpperControls.add( bUseClassifier );
-		pUpperControls.add( Box.createHorizontalGlue() );
-		pUpperControls.add( bExportSumImg );
-
-		pLowerControls.add( bSetUnaries );
-		pLowerControls.add( bSetPairwiseIsing );
-		pLowerControls.add( bSetPairwiseEdge );
-		pLowerControls.add( Box.createHorizontalGlue() );
-		pLowerControls.add( bCompute );
-
-		final JPanel controls = new JPanel( new GridLayout( 2, 1 ) );
-		controls.add( pUpperControls );
-		controls.add( pLowerControls );
-		add( controls, BorderLayout.SOUTH );
+		pControls.add( bCompute );
+		add( pControls, BorderLayout.SOUTH );
 
 		// - - - - - - - - - - - - - - - - - - - - - - - -
 		// KEYSTROKE SETUP (usingInput- and ActionMaps)
 		// - - - - - - - - - - - - - - - - - - - - - - - -
-		this.getInputMap( WHEN_IN_FOCUSED_WINDOW ).put( KeyStroke.getKeyStroke( 'g' ), "MMGUI_bindings" );
-		this.getInputMap( WHEN_IN_FOCUSED_WINDOW ).put( KeyStroke.getKeyStroke( 'l' ), "MMGUI_bindings" );
-		this.getInputMap( WHEN_IN_FOCUSED_WINDOW ).put( KeyStroke.getKeyStroke( 'u' ), "MMGUI_bindings" );
-		this.getInputMap( WHEN_IN_FOCUSED_WINDOW ).put( KeyStroke.getKeyStroke( '1' ), "MMGUI_bindings" );
-		this.getInputMap( WHEN_IN_FOCUSED_WINDOW ).put( KeyStroke.getKeyStroke( '2' ), "MMGUI_bindings" );
-		this.getInputMap( WHEN_IN_FOCUSED_WINDOW ).put( KeyStroke.getKeyStroke( '3' ), "MMGUI_bindings" );
-		this.getInputMap( WHEN_IN_FOCUSED_WINDOW ).put( KeyStroke.getKeyStroke( '4' ), "MMGUI_bindings" );
-		this.getInputMap( WHEN_IN_FOCUSED_WINDOW ).put( KeyStroke.getKeyStroke( '5' ), "MMGUI_bindings" );
 		this.getInputMap( WHEN_IN_FOCUSED_WINDOW ).put( KeyStroke.getKeyStroke( '.' ), "MMGUI_bindings" );
 		this.getInputMap( WHEN_IN_FOCUSED_WINDOW ).put( KeyStroke.getKeyStroke( ',' ), "MMGUI_bindings" );
 
@@ -290,30 +388,6 @@ public class ParaMaxFlowPanel extends JPanel implements ActionListener, ChangeLi
 
 			@Override
 			public void actionPerformed( final ActionEvent e ) {
-				if ( e.getActionCommand().equals( "g" ) ) {
-					bCompute.doClick();
-				}
-				if ( e.getActionCommand().equals( "l" ) ) {
-					bLoadClassifier.doClick();
-				}
-				if ( e.getActionCommand().equals( "u" ) ) {
-					bUseClassifier.doClick();
-				}
-				if ( e.getActionCommand().equals( "1" ) ) {
-					tabsViews.setSelectedComponent( icOrig.getParent() );
-				}
-				if ( e.getActionCommand().equals( "2" ) ) {
-					tabsViews.setSelectedComponent( icClass );
-				}
-				if ( e.getActionCommand().equals( "3" ) ) {
-					tabsViews.setSelectedComponent( icSumImg );
-				}
-				if ( e.getActionCommand().equals( "4" ) ) {
-					tabsViews.setSelectedComponent( icSeg.getParent() );
-				}
-				if ( e.getActionCommand().equals( "5" ) ) {
-					tabsViews.setSelectedIndex( tabsViews.getTabCount() - 1 );
-				}
 				if ( e.getActionCommand().equals( "," ) ) {
 					decrementSolutionToShow();
 				}
@@ -374,7 +448,7 @@ public class ParaMaxFlowPanel extends JPanel implements ActionListener, ChangeLi
 	}
 
 	/**
-	 *
+	 * Refreshes and displays all potential cost functions.
 	 */
 	private void updateCostPlots() {
 		costPlots.removeAllPlots();
@@ -404,7 +478,7 @@ public class ParaMaxFlowPanel extends JPanel implements ActionListener, ChangeLi
 	}
 
 	/**
-	 *
+	 * Switches to the previous segmentation hypothesis.
 	 */
 	protected void decrementSolutionToShow() {
 		if ( currSeg > 0 ) {
@@ -414,7 +488,7 @@ public class ParaMaxFlowPanel extends JPanel implements ActionListener, ChangeLi
 	}
 
 	/**
-	 *
+	 * Switches to the next segmentation hypothesis.
 	 */
 	protected void incrementSolutionToShow() {
 		if ( currSeg < this.numSols ) {
@@ -429,154 +503,331 @@ public class ParaMaxFlowPanel extends JPanel implements ActionListener, ChangeLi
 	@Override
 	public void actionPerformed( final ActionEvent e ) {
 
-		if ( e.getSource().equals( bLoadClassifier ) ) {
-			this.imgClassified = null;
-			loadClassifierButtonPushed();
+		if ( e.getSource().equals( bLoadCostModulationClassifier ) ) {
+			actionLoadCostModulationClassifier();
+			computeCostModulationImage();
 
-		} else if ( e.getSource().equals( bUseClassifier ) ) {
-			getImgClassified();
-//			SegmentationMagic.showLastClassified();
-			this.icClass.setDoubleTypeSourceImage( this.imgClassified );
+		} else if ( e.getSource().equals( bLoadUnaryPotentialsClassifier ) ) {
+			actionLoadUnaryCostClassifier();
+			computeUnaryCostImage();
+
+		} else if ( e.getSource().equals( bLoadPairwisePotentialsClassifier ) ) {
+			actionLoadPairwiseCostClassifier();
+			computePairwiseCostImage();
 
 		} else if ( e.getSource().equals( bLoadCostFunctions ) ) {
-			final JFileChooser fc = new JFileChooser( DEFAULT_PATH );
-			fc.addChoosableFileFilter( new ExtensionFileFilter( new String[] { "jug", "JUG" }, "JUG-cost-function-file" ) );
-
-			if ( fc.showOpenDialog( this.getTopLevelAncestor() ) == JFileChooser.APPROVE_OPTION ) {
-				final File file = fc.getSelectedFile();
-				try {
-					final FileInputStream fileIn = new FileInputStream( file );
-					final ObjectInputStream in = new ObjectInputStream( fileIn );
-					SegmentationMagic.setFktUnary( ( Function1D< Double > ) in.readObject() );
-					SegmentationMagic.setCostIsing( ( ( Double ) in.readObject() ).doubleValue() );
-					SegmentationMagic.setFktPairwiseX( ( Function1D< Double > ) in.readObject() );
-					SegmentationMagic.setFktPairwiseY( ( Function1D< Double > ) in.readObject() );
-					SegmentationMagic.setFktPairwiseZ( ( Function1D< Double > ) in.readObject() );
-				} catch ( final IOException ex ) {
-					ex.printStackTrace();
-				} catch ( final ClassNotFoundException ex2 ) {
-					ex2.printStackTrace();
-				}
-				updateCostPlots();
-			}
+			actionLoadCostFunction();
 
 		} else if ( e.getSource().equals( bSaveCostFunctions ) ) {
-			final JFileChooser fc = new JFileChooser( DEFAULT_PATH );
-			fc.addChoosableFileFilter( new ExtensionFileFilter( new String[] { "jug", "JUG" }, "JUG-cost-function-file" ) );
-
-			if ( fc.showSaveDialog( this.getTopLevelAncestor() ) == JFileChooser.APPROVE_OPTION ) {
-				File file = fc.getSelectedFile();
-				if ( !file.getAbsolutePath().endsWith( ".jug" ) && !file.getAbsolutePath().endsWith( ".JUG" ) ) {
-					file = new File( file.getAbsolutePath() + ".jug" );
-				}
-				try {
-					final FileOutputStream fileOut = new FileOutputStream( file );
-					final ObjectOutputStream out = new ObjectOutputStream( fileOut );
-					out.writeObject( SegmentationMagic.getFktUnary() );
-					out.writeObject( new Double( SegmentationMagic.getCostIsing() ) );
-					out.writeObject( SegmentationMagic.getFktPairwiseX() );
-					out.writeObject( SegmentationMagic.getFktPairwiseY() );
-					out.writeObject( SegmentationMagic.getFktPairwiseZ() );
-				} catch ( final IOException ex ) {
-					ex.printStackTrace();
-				}
-			}
+			actionSaveCostFunctions();
 
 		} else if ( e.getSource().equals( bSetUnaries ) ) {
-			if ( funcComposerUnaries == null ) {
-				funcComposerUnaries = new FunctionComposerDialog( SegmentationMagic.getFktUnary() );
-			}
-			final Function1D< Double > newFkt = funcComposerUnaries.open();
-			if ( newFkt != null ) {
-				SegmentationMagic.setFktUnary( newFkt );
-			}
-			updateCostPlots();
+			actionSetUnaryPotentialFunction();
 
 		} else if ( e.getSource().equals( bSetPairwiseIsing ) ) {
-			try {
-				SegmentationMagic.setCostIsing( Double.parseDouble( JOptionPane.showInputDialog( "Please add an Ising cost:" ) ) );
-			} catch ( final NumberFormatException ex ) {
-				JOptionPane.showMessageDialog( this, "Parse error: please input a number that can be parsed as a double." );
-			} catch ( final NullPointerException ex2 ) {
-				// cancel was hit in JOptionPane
-			}
-			updateCostPlots();
+			actionSetBinaryIsingPotentialFunction();
 
 		} else if ( e.getSource().equals( bSetPairwiseEdge ) ) {
-			if ( funcComposerPairwiseEdge == null ) {
-				funcComposerPairwiseEdge = new FunctionComposerDialog( SegmentationMagic.getFktPairwiseX() );
-			}
-			final Function1D< Double > newFkt = funcComposerPairwiseEdge.open();
-			if ( newFkt != null ) {
-				SegmentationMagic.setFktPairwiseX( newFkt );
-				SegmentationMagic.setFktPairwiseY( newFkt );
-				SegmentationMagic.setFktPairwiseZ( newFkt );
-			}
-			updateCostPlots();
+			actionSetBinaryEdgePotentialFunction();
 
 		} else if ( e.getSource().equals( bCompute ) ) {
-			if ( this.bUseClassifier.isSelected() ) {
-				this.imgSumLong = SegmentationMagic.returnClassificationBoostedParamaxflowRegionSums( imgOrigNorm, imgClassified );
-			} else {
-				this.imgSumLong = SegmentationMagic.returnParamaxflowRegionSums( imgOrigNorm );
-			}
-			this.icSumImg.setLongTypeSourceImage( this.imgSumLong );
-			this.numSols = SegmentationMagic.getNumSolutions();
-			this.sliderSegmentation.setMaximum( ( int ) this.numSols );
-			this.sliderSegmentation.setValue( 0 );
+			actionStartParaMaxFlow();
 
 		} else if ( e.getSource().equals( bExportSumImg ) ) {
-			ImageJFunctions.show( this.imgSumLong );
+			actionExportSumImgToFiji();
+
+		} else if ( e.getSource().equals( bExportCurrentSegmentation ) ) {
+			actionExportCurrentSegmentationToFiji();
 
 		} else if ( e.getSource().equals( bHistogramToUnaries ) ) {
-			if ( LongType.class.isInstance( Util.getTypeFromInterval( icOrig.getSourceImage() ) ) || DoubleType.class.isInstance( Util.getTypeFromInterval( icOrig.getSourceImage() ) ) ) {
-
-				final SampledFunction1D fHist = IddeaUtil.getHistogramFromInteractiveViewer( icOrig, colorForeground, 0, 1, PLOT_STEPS );
-				final SampledFunction1D fHistBG = IddeaUtil.getHistogramFromInteractiveViewer( icOrig, colorBackground, 0, 1, PLOT_STEPS );
-
-				fHist.normalizeToDiscreteDistribution();
-				fHistBG.normalizeToDiscreteDistribution();
-
-				fHist.mult( -1.0 );
-				fHist.add( fHistBG );
-				final double min = fHist.getMin();
-				final double max = fHist.getMax();
-				final double absmax = Math.max( Math.abs( min ), Math.abs( max ) );
-				if ( absmax != 0.0 ) fHist.mult( 1.0 / absmax );
-
-				SegmentationMagic.setFktUnary( fHist );
-				updateCostPlots();
-				tabsViews.setSelectedIndex( tabsViews.getTabCount() - 1 );
-			} else {
-				JOptionPane.showMessageDialog( this.getRootPane(), "Histograms (and therefore unaries) can only be created for images of pixel-types 'LongType' or 'DoubleType'." );
-			}
+			actionCreateUnaryPotentialFunctionFromRawImageAnotations();
 		}
 
 	}
 
 	/**
-	 * @return
+	 * 
 	 */
-	private RandomAccessibleInterval< DoubleType > getImgClassified() {
-		if ( this.imgClassified == null ) {
-			this.imgClassified = SegmentationMagic.returnClassification( this.imgOrig );
+	public void actionCreateUnaryPotentialFunctionFromRawImageAnotations() {
+		if ( LongType.class.isInstance( Util.getTypeFromInterval( icOrig.getSourceImage() ) ) || DoubleType.class.isInstance( Util.getTypeFromInterval( icOrig.getSourceImage() ) ) ) {
+
+			final SampledFunction1D fHist = IddeaUtil.getHistogramFromInteractiveViewer( icOrig, colorForeground, 0, 1, PLOT_STEPS );
+			final SampledFunction1D fHistBG = IddeaUtil.getHistogramFromInteractiveViewer( icOrig, colorBackground, 0, 1, PLOT_STEPS );
+
+			fHist.normalizeToDiscreteDistribution();
+			fHistBG.normalizeToDiscreteDistribution();
+
+			fHist.mult( -1.0 );
+			fHist.add( fHistBG );
+			final double min = fHist.getMin();
+			final double max = fHist.getMax();
+			final double absmax = Math.max( Math.abs( min ), Math.abs( max ) );
+			if ( absmax != 0.0 ) fHist.mult( 1.0 / absmax );
+
+			SegmentationMagic.setFktUnary( fHist );
+			updateCostPlots();
+			tabsViews.setSelectedIndex( tabsViews.getTabCount() - 1 );
+		} else {
+			JOptionPane.showMessageDialog( this.getRootPane(), "Histograms (and therefore unaries) can only be created for images of pixel-types 'LongType' or 'DoubleType'." );
 		}
-		return this.imgClassified;
+	}
+
+	/**
+	 * 
+	 */
+	public void actionExportCurrentSegmentationToFiji() {
+		if ( this.imgSegmentation != null ) {
+			ImageJFunctions.show( this.imgSegmentation );
+		} else {
+			JOptionPane.showMessageDialog( this.getRootPane(), "The source image was not yet segmented sucessfully, hence there is no current segmentation!" );
+		}
+	}
+
+	/**
+	 * 
+	 */
+	public void actionExportSumImgToFiji() {
+		if ( this.imgSumLong != null ) {
+			ImageJFunctions.show( this.imgSumLong );
+		} else {
+			JOptionPane.showMessageDialog( this.getRootPane(), "The source image was not yet segmented sucessfully, hence there is no sum-img yet!" );
+		}
+	}
+
+	/**
+	 * 
+	 */
+	public void actionStartParaMaxFlow() {
+		boolean success = false;
+
+		if ( tabsFunctionBasedPotentials.isShowing() ) {
+			success = actionStartParaMaxFlowUsingFunctionBasedPotentials();
+		} else if ( tabsClassificationBasedPotentials.isShowing() ) {
+			success = actionStartParaMaxFlowUsingClassificationBasedPotentials();
+		} else {
+			JOptionPane.showMessageDialog( this.getRootPane(), "Tab 'potentials' must be selected to start the segmentation.\n(In order to know which type of costs should be used...)" );
+			return;
+		}
+
+		if ( success ) {
+			this.icSumImg.setLongTypeSourceImage( this.imgSumLong );
+			bExportSumImg.setEnabled( true );
+			bExportCurrentSegmentation.setEnabled( true );
+
+			this.numSols = SegmentationMagic.getNumSolutions();
+			this.sliderSegmentation.setMaximum( ( int ) this.numSols );
+			this.sliderSegmentation.setValue( ( int ) this.numSols / 2 );
+
+			this.tabsViews.setSelectedIndex( 2 );
+		}
+	}
+
+	/**
+	 * 
+	 */
+	private boolean actionStartParaMaxFlowUsingClassificationBasedPotentials() {
+		try {
+			if ( this.imgUnaryCostImage != null && this.imgPairwiseCostImage != null ) {
+				final double unaryCostFactor = Double.parseDouble( this.txtClassifiedUnaryCostFactor.getText() );
+				final double isingCosts = Double.parseDouble( this.txtCostClassifierIsing.getText() );
+				this.imgSumLong = SegmentationMagic.returnPotentialImageBasedParamaxflowRegionSums( imgOrigNorm, unaryCostFactor, this.imgUnaryCostImage, isingCosts, this.imgPairwiseCostImage );
+				return true;
+			} else {
+				JOptionPane.showMessageDialog( this.getRootPane(), "Unary and pairwise cost images must be loaded! Segmentation aborted." );
+			}
+		} catch ( final NumberFormatException e ) {
+			JOptionPane.showMessageDialog( this.getRootPane(), "Ising costs or unary cost factor cannot be parsed as double-value." );
+		}
+		return false;
+	}
+
+	/**
+	 * 
+	 */
+	private boolean actionStartParaMaxFlowUsingFunctionBasedPotentials() {
+		if ( this.bUseCostModulationClassifier.isSelected() ) {
+			this.imgSumLong = SegmentationMagic.returnClassificationModulatedParamaxflowRegionSums( imgOrigNorm, imgCostModulationImage );
+		} else {
+			this.imgSumLong = SegmentationMagic.returnFunctionPotentialBasedParamaxflowRegionSums( imgOrigNorm );
+		}
+		return true;
+	}
+
+	/**
+	 * 
+	 */
+	public void actionSetBinaryEdgePotentialFunction() {
+		if ( funcComposerPairwiseEdge == null ) {
+			funcComposerPairwiseEdge = new FunctionComposerDialog( SegmentationMagic.getFktPairwiseX() );
+		}
+		final Function1D< Double > newFkt = funcComposerPairwiseEdge.open();
+		if ( newFkt != null ) {
+			SegmentationMagic.setFktPairwiseX( newFkt );
+			SegmentationMagic.setFktPairwiseY( newFkt );
+			SegmentationMagic.setFktPairwiseZ( newFkt );
+		}
+		updateCostPlots();
+	}
+
+	/**
+	 * 
+	 */
+	public void actionSetBinaryIsingPotentialFunction() {
+		try {
+			SegmentationMagic.setCostIsing( Double.parseDouble( JOptionPane.showInputDialog( "Please add an Ising cost:" ) ) );
+		} catch ( final NumberFormatException ex ) {
+			JOptionPane.showMessageDialog( this, "Parse error: please input a number that can be parsed as a double." );
+		} catch ( final NullPointerException ex2 ) {
+			// cancel was hit in JOptionPane
+		}
+		updateCostPlots();
+	}
+
+	/**
+	 * 
+	 */
+	public void actionSetUnaryPotentialFunction() {
+		if ( funcComposerUnaries == null ) {
+			funcComposerUnaries = new FunctionComposerDialog( SegmentationMagic.getFktUnary() );
+		}
+		final Function1D< Double > newFkt = funcComposerUnaries.open();
+		if ( newFkt != null ) {
+			SegmentationMagic.setFktUnary( newFkt );
+		}
+		updateCostPlots();
+	}
+
+	/**
+	 * 
+	 */
+	public void actionSaveCostFunctions() {
+		final JFileChooser fc = new JFileChooser( DEFAULT_PATH );
+		fc.addChoosableFileFilter( new ExtensionFileFilter( new String[] { "jug", "JUG" }, "JUG-cost-function-file" ) );
+
+		if ( fc.showSaveDialog( this.getTopLevelAncestor() ) == JFileChooser.APPROVE_OPTION ) {
+			File file = fc.getSelectedFile();
+			if ( !file.getAbsolutePath().endsWith( ".jug" ) && !file.getAbsolutePath().endsWith( ".JUG" ) ) {
+				file = new File( file.getAbsolutePath() + ".jug" );
+			}
+			try {
+				final FileOutputStream fileOut = new FileOutputStream( file );
+				final ObjectOutputStream out = new ObjectOutputStream( fileOut );
+				out.writeObject( SegmentationMagic.getFktUnary() );
+				out.writeObject( new Double( SegmentationMagic.getCostIsing() ) );
+				out.writeObject( SegmentationMagic.getFktPairwiseX() );
+				out.writeObject( SegmentationMagic.getFktPairwiseY() );
+				out.writeObject( SegmentationMagic.getFktPairwiseZ() );
+			} catch ( final IOException ex ) {
+				ex.printStackTrace();
+			}
+		}
+	}
+
+	/**
+	 * 
+	 */
+	public void actionLoadCostFunction() {
+		final JFileChooser fc = new JFileChooser( DEFAULT_PATH );
+		fc.addChoosableFileFilter( new ExtensionFileFilter( new String[] { "jug", "JUG" }, "JUG-cost-function-file" ) );
+
+		if ( fc.showOpenDialog( this.getTopLevelAncestor() ) == JFileChooser.APPROVE_OPTION ) {
+			final File file = fc.getSelectedFile();
+			try {
+				final FileInputStream fileIn = new FileInputStream( file );
+				final ObjectInputStream in = new ObjectInputStream( fileIn );
+				SegmentationMagic.setFktUnary( ( Function1D< Double > ) in.readObject() );
+				SegmentationMagic.setCostIsing( ( ( Double ) in.readObject() ).doubleValue() );
+				SegmentationMagic.setFktPairwiseX( ( Function1D< Double > ) in.readObject() );
+				SegmentationMagic.setFktPairwiseY( ( Function1D< Double > ) in.readObject() );
+				SegmentationMagic.setFktPairwiseZ( ( Function1D< Double > ) in.readObject() );
+			} catch ( final IOException ex ) {
+				ex.printStackTrace();
+			} catch ( final ClassNotFoundException ex2 ) {
+				ex2.printStackTrace();
+			}
+			updateCostPlots();
+		}
+	}
+
+	/**
+	 * 
+	 */
+	private void computeCostModulationImage() {
+		if ( this.classifierCostsModulation != null ) {
+			SegmentationMagic.setClassifier( this.classifierCostsModulation );
+			this.imgCostModulationImage = SegmentationMagic.returnClassification( this.imgOrig );
+			this.icCostFunctionModulation.setDoubleTypeSourceImage( this.imgCostModulationImage );
+		} else {
+			JOptionPane.showMessageDialog( this.getRootPane(), "No classifier was loaded yet!" );
+		}
+	}
+
+	/**
+	 * 
+	 */
+	private void computeUnaryCostImage() {
+		if ( this.classifierUnaryCosts != null ) {
+			SegmentationMagic.setClassifier( this.classifierUnaryCosts );
+			this.imgUnaryCostImage = SegmentationMagic.returnClassification( this.imgOrig );
+			this.icUnaryPotentials.setDoubleTypeSourceImage( this.imgUnaryCostImage );
+		} else {
+			JOptionPane.showMessageDialog( this.getRootPane(), "No classifier was loaded yet!" );
+		}
+	}
+
+	/**
+	 * 
+	 */
+	private void computePairwiseCostImage() {
+		if ( this.classifierPairwiseCosts != null ) {
+			SegmentationMagic.setClassifier( this.classifierPairwiseCosts );
+			this.imgPairwiseCostImage = SegmentationMagic.returnClassification( this.imgOrig );
+			this.icPairwisePotentials.setDoubleTypeSourceImage( this.imgPairwiseCostImage );
+		} else {
+			JOptionPane.showMessageDialog( this.getRootPane(), "No classifier was loaded yet!" );
+		}
 	}
 
 	/**
 	 *
 	 */
-	private void loadClassifierButtonPushed() {
+	private void actionLoadCostModulationClassifier() {
 		final JFileChooser fc = new JFileChooser( DEFAULT_PATH );
 		fc.addChoosableFileFilter( new ExtensionFileFilter( new String[] { "model", "MODEL" }, "weka-model-file" ) );
 
 		if ( fc.showOpenDialog( guiFrame ) == JFileChooser.APPROVE_OPTION ) {
 			final File file = fc.getSelectedFile();
-			// this.wekaSegmenter = new SilentWekaSegmenter< DoubleType >(
-			// file.getParent() + "/", file.getName() );
 			SegmentationMagic.setClassifier( file.getParent() + "/", file.getName() );
-			this.bUseClassifier.setEnabled( true );
+			classifierCostsModulation = SegmentationMagic.getClassifier();
+			this.bUseCostModulationClassifier.setEnabled( true );
+		}
+	}
+
+	/**
+	 *
+	 */
+	private void actionLoadUnaryCostClassifier() {
+		final JFileChooser fc = new JFileChooser( DEFAULT_PATH );
+		fc.addChoosableFileFilter( new ExtensionFileFilter( new String[] { "model", "MODEL" }, "weka-model-file" ) );
+
+		if ( fc.showOpenDialog( guiFrame ) == JFileChooser.APPROVE_OPTION ) {
+			final File file = fc.getSelectedFile();
+			SegmentationMagic.setClassifier( file.getParent() + "/", file.getName() );
+			classifierUnaryCosts = SegmentationMagic.getClassifier();
+		}
+	}
+
+	/**
+	 *
+	 */
+	private void actionLoadPairwiseCostClassifier() {
+		final JFileChooser fc = new JFileChooser( DEFAULT_PATH );
+		fc.addChoosableFileFilter( new ExtensionFileFilter( new String[] { "model", "MODEL" }, "weka-model-file" ) );
+
+		if ( fc.showOpenDialog( guiFrame ) == JFileChooser.APPROVE_OPTION ) {
+			final File file = fc.getSelectedFile();
+			SegmentationMagic.setClassifier( file.getParent() + "/", file.getName() );
+			classifierPairwiseCosts = SegmentationMagic.getClassifier();
 		}
 	}
 

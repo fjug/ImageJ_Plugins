@@ -197,4 +197,15 @@ public class SampledFunction1D implements Function1D< Double > {
 		return max;
 	}
 
+	/**
+	 * Convolve with a given kernel. The kernel will be applied to plus/minus
+	 * <code>indexRadiusRange</code> many sample-values for the convolution.
+	 * 
+	 * @param kernel
+	 *            A <code>Function1D</code> defining the convolution kernel.
+	 * @param indexRadiusRange
+	 */
+	public void convolve( final Function1D kernel, final int indexRadiusRange ) {
+
+	}
 }
