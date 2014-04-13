@@ -566,7 +566,7 @@ public class ParaMaxFlowPanel extends JPanel implements ActionListener, ChangeLi
 
 			SegmentationMagic.setFktUnary( fHist );
 			updateCostPlots();
-			tabsViews.setSelectedIndex( tabsViews.getTabCount() - 1 );
+			tabsViews.setSelectedIndex( 2 );
 		} else {
 			JOptionPane.showMessageDialog( this.getRootPane(), "Histograms (and therefore unaries) can only be created for images of pixel-types 'LongType' or 'DoubleType'." );
 		}
