@@ -75,8 +75,7 @@ import com.jug.util.converter.RealDoubleNormalizeConverter;
  */
 public class ParaMaxFlowPanel extends JPanel implements ActionListener, ChangeListener {
 
-//	private static final String DEFAULT_PATH = "/Users/moon/Projects/git-projects/fjug/ImageJ_PlugIns/ParaMaxFlow/src/main/resources/";
-	private static final String DEFAULT_PATH = "/Users/jug/Dropbox/WorkingData/Repositories/GIT/ImageJ_PlugIns/ParaMaxFlow/src/main/resources";
+	private static final String DEFAULT_PATH = System.getProperty("user.dir") + "/src/main/resources";
 	final int PLOT_STEPS = 200;
 
 	private static ParaMaxFlowPanel main;
@@ -151,6 +150,8 @@ public class ParaMaxFlowPanel extends JPanel implements ActionListener, ChangeLi
 	@SuppressWarnings( { "unchecked", "rawtypes" } )
 	public ParaMaxFlowPanel( final Frame frame, final ImagePlus imgPlus ) {
 		super( new BorderLayout( 5, 5 ) );
+		
+		System.out.println(DEFAULT_PATH);
 		setBorder( BorderFactory.createEmptyBorder( 10, 15, 5, 15 ) );
 		this.frame = frame;
 		this.imgPlus = imgPlus;
@@ -848,9 +849,16 @@ public class ParaMaxFlowPanel extends JPanel implements ActionListener, ChangeLi
 
 		if ( temp == null ) {
 			temp = new ImageJ();
-			// IJ.open( "/Users/moon/Documents/clown.tif" );
+			
+			if(args.length > 0) {
+				IJ.open( args[0] );	
+			}
+			else {
+				throw new IllegalArgumentException("Please, set an image path in the program arguments.");
+			}
+			 
 			// IJ.open( "/Users/moon/Pictures/spim/spim-0.tif" );
-			IJ.open( "/Users/jug/Desktop/clown.tif" );
+			//IJ.open( "/Users/jug/Desktop/clown.tif" );
 //			IJ.open( "/Users/jug/Desktop/demo.tif" );
 		}
 
