@@ -167,12 +167,12 @@ public class ParaMaxFlowPanel extends JPanel implements ActionListener, ChangeLi
 		this.imgSegmentation = null;
 
 		this.icOrig = new IddeaComponent( Views.interval( imgOrigNorm, imgOrigNorm ) );
-		this.icSumImg = new IddeaComponent();
-		this.icSeg = new IddeaComponent();
+		this.icSumImg = new IddeaComponent( new Dimension( imgPlus.getWidth(), imgPlus.getHeight() ));
+		this.icSeg = new IddeaComponent( new Dimension( imgPlus.getWidth(), imgPlus.getHeight() ));
 
-		this.icCostFunctionModulation = new IddeaComponent();
-		this.icUnaryPotentials = new IddeaComponent();
-		this.icPairwisePotentials = new IddeaComponent();
+		this.icCostFunctionModulation = new IddeaComponent( new Dimension( imgPlus.getWidth(), imgPlus.getHeight() ));
+		this.icUnaryPotentials = new IddeaComponent( new Dimension( imgPlus.getWidth(), imgPlus.getHeight() ));
+		this.icPairwisePotentials = new IddeaComponent( new Dimension( imgPlus.getWidth(), imgPlus.getHeight() ));
 
 		buildGui();
 

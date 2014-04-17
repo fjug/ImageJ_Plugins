@@ -1,6 +1,7 @@
 package view.component;
 
 import java.awt.BorderLayout;
+import java.awt.Component;
 import java.awt.Dimension;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
@@ -73,7 +74,7 @@ public class IddeaComponent extends JPanel implements ActionListener {
 	private static final long serialVersionUID = -3808140519052170304L;
 
 	// The everything containing scroll-bar
-	private final JScrollPane scrollPane;
+	private JScrollPane scrollPane;
 
 	// InteractiveViewer2D for the imglib2 data to be shown.
 	private InteractiveRealViewer2D< DoubleType > interactiveViewer2D;
@@ -83,7 +84,7 @@ public class IddeaComponent extends JPanel implements ActionListener {
 
 	// JHotDraw related stuff
 	private DrawingEditor editor;
-	private final InteractiveDrawingView view;
+	private InteractiveDrawingView view;
 	private Drawing drawing;
 
 	// Toolbar setup and the toolbar itself
@@ -93,10 +94,10 @@ public class IddeaComponent extends JPanel implements ActionListener {
 
 	// Menu related stuff
 	private final boolean isMenuVisible = false;
-	private final JMenuBar menuBar;
-	private final JMenu fileMenu;
-	private final JMenuItem menuItemOpen;
-	private final JMenuItem menuItemSaveAs;
+	private JMenuBar menuBar;
+	private JMenu fileMenu;
+	private JMenuItem menuItemOpen;
+	private JMenuItem menuItemSaveAs;
 
 	// File chooser for saving and loading
 	private JFileChooser openChooser;
@@ -113,7 +114,10 @@ public class IddeaComponent extends JPanel implements ActionListener {
 	 * image.
 	 */
 	public IddeaComponent() {
-		this( null );
+		
+		view = buildInteractiveDrawingView();
+
+		initComponents(view);
 	}
 
 	/**
@@ -124,12 +128,29 @@ public class IddeaComponent extends JPanel implements ActionListener {
 
 		this.ivSourceImage = sourceImage;
 
+		view = buildInteractiveDrawingView( ivSourceImage );
+
+		initComponents(view);
+	}
+	
+	/**
+	 * Creates an <code>IddeaComponent</code> and adds the given
+	 * <code>dimension</code> to it. Otherwise, 300x200 default screen appears.
+	 */
+	public IddeaComponent( final Dimension dim ) {
+
+		view = buildInteractiveDrawingView( dim );
+
+		initComponents(view);
+	}
+	
+	private void initComponents(InteractiveDrawingView view)
+	{
 		editor = new DefaultDrawingEditor();
 		createEmptyToolbar();
 
 		scrollPane = new javax.swing.JScrollPane();
-		view = buildInteractiveDrawingView( ivSourceImage );
-
+		
 		setLayout( new java.awt.BorderLayout() );
 
 		scrollPane.setHorizontalScrollBarPolicy( javax.swing.ScrollPaneConstants.HORIZONTAL_SCROLLBAR_NEVER );
@@ -463,24 +484,54 @@ public class IddeaComponent extends JPanel implements ActionListener {
 	 * @return
 	 */
 	private InteractiveDrawingView buildInteractiveDrawingView( final IntervalView< DoubleType > sourceImage ) {
-		if ( sourceImage != null ) {
-			final AffineTransform2D transform = new AffineTransform2D();
 
-			final DoubleType min = new DoubleType();
-			final DoubleType max = new DoubleType();
-			ImglibUtil.computeMinMax( sourceImage, min, max );
+		final AffineTransform2D transform = new AffineTransform2D();
 
-			final RealRandomAccessible< DoubleType > interpolated = Views.interpolate( Views.extendZero( sourceImage ), new NearestNeighborInterpolatorFactory< DoubleType >() );
-			final RealARGBConverter< DoubleType > converter = new RealARGBConverter< DoubleType >( min.get(), max.get() );
+		final DoubleType min = new DoubleType();
+		final DoubleType max = new DoubleType();
+		ImglibUtil.computeMinMax( sourceImage, min, max );
 
-			interactiveViewer2D = new InteractiveRealViewer2D< DoubleType >( ( int ) sourceImage.max( 0 ), ( int ) sourceImage.max( 1 ), interpolated, transform, converter );
-		} else {
-			final AffineTransform2D transform = new AffineTransform2D();
-			final RealRandomAccessible< DoubleType > dummy = new DummyRealRandomAccessible();
-			final RealARGBConverter< DoubleType > converter = new RealARGBConverter< DoubleType >( 0, 0 );
+		final RealRandomAccessible< DoubleType > interpolated = Views.interpolate( Views.extendZero( sourceImage ), new NearestNeighborInterpolatorFactory< DoubleType >() );
+		final RealARGBConverter< DoubleType > converter = new RealARGBConverter< DoubleType >( min.get(), max.get() );
 
-			interactiveViewer2D = new InteractiveRealViewer2D< DoubleType >( 300, 200, dummy, transform, converter );
-		}
+		interactiveViewer2D = new InteractiveRealViewer2D< DoubleType >( ( int ) sourceImage.max( 0 ), ( int ) sourceImage.max( 1 ), interpolated, transform, converter );
+
+		return interactiveViewer2D.getJHotDrawDisplay();
+	}
+	
+	/**
+	 * Builds default Interactive Drawing view
+	 * Caution: this function also creates a new
+	 * <code>interactiveViewer2D</code>.
+	 * 
+	 * @return
+	 */
+	private InteractiveDrawingView buildInteractiveDrawingView( ) {
+
+		final AffineTransform2D transform = new AffineTransform2D();
+		final RealRandomAccessible< DoubleType > dummy = new DummyRealRandomAccessible();
+		final RealARGBConverter< DoubleType > converter = new RealARGBConverter< DoubleType >( 0, 0 );
+
+		interactiveViewer2D = new InteractiveRealViewer2D< DoubleType >( 300, 200, dummy, transform, converter );
+
+		return interactiveViewer2D.getJHotDrawDisplay();
+	}
+	
+	/**
+	 * Builds an Interactive Drawing view from a given Dimension <code>dim</code>
+	 * Caution: this function also creates a new
+	 * <code>interactiveViewer2D</code>.
+	 * 
+	 * @param dim
+	 * @return
+	 */
+	private InteractiveDrawingView buildInteractiveDrawingView( final Dimension dim ) {
+
+		final AffineTransform2D transform = new AffineTransform2D();
+		final RealRandomAccessible< DoubleType > dummy = new DummyRealRandomAccessible();
+		final RealARGBConverter< DoubleType > converter = new RealARGBConverter< DoubleType >( 0, 0 );
+
+		interactiveViewer2D = new InteractiveRealViewer2D< DoubleType >( dim.width, dim.height, dummy, transform, converter );
 
 		return interactiveViewer2D.getJHotDrawDisplay();
 	}
