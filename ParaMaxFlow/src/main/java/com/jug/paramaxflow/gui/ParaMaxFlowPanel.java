@@ -159,7 +159,6 @@ public class ParaMaxFlowPanel extends JPanel implements ActionListener, ChangeLi
 	public ParaMaxFlowPanel( final Frame frame, final ImagePlus imgPlus ) {
 		super( new BorderLayout( 5, 5 ) );
 		
-		System.out.println(DEFAULT_PATH);
 		setBorder( BorderFactory.createEmptyBorder( 10, 15, 5, 15 ) );
 		this.frame = frame;
 		this.imgPlus = imgPlus;
