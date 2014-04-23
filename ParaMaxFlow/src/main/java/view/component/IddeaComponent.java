@@ -337,9 +337,14 @@ public class IddeaComponent extends JPanel implements ActionListener {
 
 	//////////////////////////// OVERRIDDEN /////////////////////////////////
 
+    /**
+     * Set the {@link Dimension} that contains the input image's dimension
+     * information and propagate the dimension information to the JHotDrawDisplay.
+     * @see javax.swing.JComponent#setPreferredSize(java.awt.Dimension)
+     */
 	@Override
 	public void setPreferredSize( final Dimension dim ) {
-		interactiveViewer2D.getJHotDrawDisplay().setPreferredSize( dim );
+		interactiveViewer2D.getJHotDrawDisplay().setImageDim( dim );
 	}
 
 	/**
@@ -531,7 +536,7 @@ public class IddeaComponent extends JPanel implements ActionListener {
 		final RealRandomAccessible< DoubleType > dummy = new DummyRealRandomAccessible();
 		final RealARGBConverter< DoubleType > converter = new RealARGBConverter< DoubleType >( 0, 0 );
 
-		interactiveViewer2D = new InteractiveRealViewer2D< DoubleType >( dim.width, dim.height, dummy, transform, converter );
+		interactiveViewer2D = new InteractiveRealViewer2D< DoubleType >( dim.width, dim.height, dummy, transform, converter );		
 
 		return interactiveViewer2D.getJHotDrawDisplay();
 	}
@@ -610,6 +615,7 @@ public class IddeaComponent extends JPanel implements ActionListener {
 	private void updateDoubleTypeSourceAndConverter( final RealRandomAccessible source, final RealARGBConverter converter ) {
 		interactiveViewer2D.updateConverter( converter );
 		interactiveViewer2D.updateSource( source );
+		interactiveViewer2D.getJHotDrawDisplay().resetTransform();
 	}
 
 	/** Lazily creates a JFileChooser and returns it. */
@@ -813,5 +819,4 @@ public class IddeaComponent extends JPanel implements ActionListener {
 			}
 		}
 	}
-
 }

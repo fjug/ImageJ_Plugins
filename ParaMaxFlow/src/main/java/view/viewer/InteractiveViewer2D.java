@@ -52,7 +52,7 @@ public class InteractiveViewer2D< T extends NumericType< T > > extends Interacti
 	public InteractiveViewer2D( final int width, final int height, final InterpolatingSource< T, AffineTransform2D > interpolatingSource )
 	{
 		super( AffineTransformType2D.instance,
-				new JHotDrawInteractiveDisplay2D< AffineTransform2D >( width, height, null, TransformEventHandler2D.factory() ),
+				new JHotDrawInteractiveDisplay2D< AffineTransform2D >( width, height, null, InteractiveTransformEventHandler2D.factory() ),
 				Defaults.rendererFactory( AffineTransformType2D.instance, interpolatingSource ) );
 
         this.source = interpolatingSource.getInterpolatedSource();
