@@ -1,7 +1,6 @@
 package view.component;
 
 import java.awt.BorderLayout;
-import java.awt.Component;
 import java.awt.Dimension;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
@@ -21,6 +20,7 @@ import javax.swing.JMenuItem;
 import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
+import javax.swing.JToggleButton;
 import javax.swing.JToolBar;
 import javax.swing.SwingUtilities;
 import javax.swing.filechooser.FileFilter;
@@ -91,7 +91,7 @@ public class IddeaComponent extends JPanel implements ActionListener {
 	private boolean isToolbarVisible = false;
 	private String toolbarLocation;
 	private JToolBar tb;
-
+	
 	// Menu related stuff
 	private final boolean isMenuVisible = false;
 	private JMenuBar menuBar;
@@ -591,6 +591,16 @@ public class IddeaComponent extends JPanel implements ActionListener {
 	public void addTool( final Tool tool, final String labelKey, final ResourceBundleUtil labels ) {
 		ButtonFactory.addToolTo( tb, editor, tool, labelKey, labels );
 	}
+	
+
+	/**
+	 * Adds a <code>JToogleButton</code> to the toolbar.
+	 *
+	 * @param button the button
+	 */
+	public void addToolBar( JToggleButton button ) {
+		tb.add(button);
+	}
 
 	/**
 	 * @param strokes
@@ -819,4 +829,5 @@ public class IddeaComponent extends JPanel implements ActionListener {
 			}
 		}
 	}
+
 }
