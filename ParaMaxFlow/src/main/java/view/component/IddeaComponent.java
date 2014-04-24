@@ -2,8 +2,10 @@ package view.component;
 
 import java.awt.BorderLayout;
 import java.awt.Dimension;
+import java.awt.Toolkit;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
+import java.awt.event.KeyEvent;
 import java.beans.PropertyChangeEvent;
 import java.beans.PropertyChangeListener;
 import java.io.File;
@@ -13,6 +15,7 @@ import java.net.URI;
 import java.util.HashMap;
 import java.util.Set;
 
+import javax.swing.ActionMap;
 import javax.swing.JFileChooser;
 import javax.swing.JMenu;
 import javax.swing.JMenuBar;
@@ -22,6 +25,7 @@ import javax.swing.JPanel;
 import javax.swing.JScrollPane;
 import javax.swing.JToggleButton;
 import javax.swing.JToolBar;
+import javax.swing.KeyStroke;
 import javax.swing.SwingUtilities;
 import javax.swing.filechooser.FileFilter;
 
@@ -38,6 +42,8 @@ import net.imglib2.type.numeric.real.DoubleType;
 import net.imglib2.view.IntervalView;
 import net.imglib2.view.Views;
 
+import org.jhotdraw.app.action.edit.RedoAction;
+import org.jhotdraw.app.action.edit.UndoAction;
 import org.jhotdraw.draw.DefaultDrawingEditor;
 import org.jhotdraw.draw.Drawing;
 import org.jhotdraw.draw.DrawingEditor;
@@ -50,6 +56,7 @@ import org.jhotdraw.draw.io.OutputFormat;
 import org.jhotdraw.draw.tool.Tool;
 import org.jhotdraw.gui.Worker;
 import org.jhotdraw.gui.filechooser.ExtensionFileFilter;
+import org.jhotdraw.undo.UndoRedoManager;
 import org.jhotdraw.util.ResourceBundleUtil;
 
 import view.display.InteractiveDrawingView;
@@ -86,7 +93,12 @@ public class IddeaComponent extends JPanel implements ActionListener {
 	private DrawingEditor editor;
 	private InteractiveDrawingView view;
 	private Drawing drawing;
-
+    /**
+     * Each DrawView uses its own undo redo manager.
+     * This allows for undoing and redoing actions per view.
+     */
+    private UndoRedoManager undo;
+    
 	// Toolbar setup and the toolbar itself
 	private boolean isToolbarVisible = false;
 	private String toolbarLocation;
@@ -98,6 +110,9 @@ public class IddeaComponent extends JPanel implements ActionListener {
 	private JMenu fileMenu;
 	private JMenuItem menuItemOpen;
 	private JMenuItem menuItemSaveAs;
+	private JMenu editMenu;
+	private JMenuItem menuItemUndo;
+	private JMenuItem menuItemRedo;
 
 	// File chooser for saving and loading
 	private JFileChooser openChooser;
@@ -158,6 +173,8 @@ public class IddeaComponent extends JPanel implements ActionListener {
 		scrollPane.setViewportView( view );
 
 		menuBar = new JMenuBar();
+		
+		// FileMenu 
 		fileMenu = new JMenu();
 		menuItemOpen = new JMenuItem();
 		menuItemSaveAs = new JMenuItem();
@@ -173,6 +190,23 @@ public class IddeaComponent extends JPanel implements ActionListener {
 		fileMenu.add( menuItemSaveAs );
 
 		menuBar.add( fileMenu );
+		
+		// EditMenu        
+		editMenu = new JMenu();
+		menuItemUndo = new JMenuItem();
+		menuItemRedo = new JMenuItem();
+		
+		editMenu.setText( "Edit" );
+		menuItemUndo.setText( "Undo" );
+		menuItemUndo.addActionListener( this );
+		editMenu.add( menuItemUndo );
+		
+		menuItemRedo.setText( "Redo" );
+		menuItemRedo.addActionListener( this );
+		editMenu.add( menuItemRedo );
+		
+		menuBar.add( editMenu );
+		
 
 		if ( isMenuVisible ) this.add( menuBar, BorderLayout.NORTH );
 
@@ -184,6 +218,15 @@ public class IddeaComponent extends JPanel implements ActionListener {
 
 		setEditor( editor );
 		view.setDrawing( createDrawing() );
+		
+		// Install undoRedoManager
+        undo = new UndoRedoManager();
+        view.getDrawing().addUndoableEditListener( undo );
+		getActionMap().put( UndoAction.ID, undo.getUndoAction() );
+		getInputMap(WHEN_IN_FOCUSED_WINDOW).put( KeyStroke.getKeyStroke(KeyEvent.VK_Z, java.awt.Event.META_MASK ), UndoAction.ID );
+		
+		getActionMap().put( RedoAction.ID, undo.getRedoAction() );
+		getInputMap(WHEN_IN_FOCUSED_WINDOW).put( KeyStroke.getKeyStroke(KeyEvent.VK_Z, java.awt.Event.META_MASK + java.awt.Event.SHIFT_MASK), RedoAction.ID );
 	}
 
 	//////////////////////////// GETTERS AND SETTERS /////////////////////////////////
@@ -427,6 +470,10 @@ public class IddeaComponent extends JPanel implements ActionListener {
 					}
 				}.start();
 			}
+		} else if ( e.getSource().equals( menuItemUndo ) ) {
+			getActionMap().get(UndoAction.ID).actionPerformed( e );
+		} else if ( e.getSource().equals( menuItemRedo ) ) {
+			getActionMap().get(RedoAction.ID).actionPerformed( e );
 		}
 	}
 
@@ -469,12 +516,12 @@ public class IddeaComponent extends JPanel implements ActionListener {
 	 * @param loadedDrawing
 	 */
 	protected void setDrawing( final Drawing loadedDrawing ) {
-//        undoManager.discardAllEdits();
 		if ( view.getDrawing() != null ) {
-//            view.getDrawing().removeUndoableEditListener(undoManager);
+            view.getDrawing().removeUndoableEditListener(undo);
 		}
 		view.setDrawing( loadedDrawing );
-//        loadedDrawing.addUndoableEditListener(undoManager);
+        view.getDrawing().addUndoableEditListener(undo);
+        undo.discardAllEdits();
 		this.drawing = loadedDrawing;
 	}
 
