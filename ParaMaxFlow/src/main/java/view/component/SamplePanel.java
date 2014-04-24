@@ -53,8 +53,6 @@ public class SamplePanel extends JPanel implements ActionListener {
 		annotator.setToolBarLocation( BorderLayout.WEST );
 		annotator.setToolBarVisible( true );
 
-		annotator.setPreferredSize( new Dimension( 30, 20 ) );
-
 		bLoad = new JButton( "Load" );
 		bLoad.addActionListener( this );
 
@@ -87,7 +85,9 @@ public class SamplePanel extends JPanel implements ActionListener {
 	@Override
 	public void actionPerformed( ActionEvent actionEvent ) {
 		if ( actionEvent.getSource().equals( bLoad ) ) {
-			File file = new File( "/Users/moon/Documents/clown.tif" );
+			//File file = new File( "/Users/moon/Documents/clown.tif" );
+			//File file = new File( "/Users/moon/Pictures/t1-head.tif" );
+			File file = new File( "/Users/moon/Pictures/confocal-series.tif" );
 
 			// open a file with ImageJ
 			final ImagePlus imp = new Opener().openImage( file.getAbsolutePath() );
@@ -99,6 +99,7 @@ public class SamplePanel extends JPanel implements ActionListener {
 
 			//Views.interval(imgOrig, imgOrig)
 
+			annotator.setPreferredSize( new Dimension(imp.getWidth(), imp.getHeight()) );
 			annotator.setDoubleTypeSourceImage( Views.interval( imgOrig, imgOrig ) );
 		}
 	}

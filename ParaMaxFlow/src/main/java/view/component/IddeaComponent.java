@@ -23,10 +23,13 @@ import javax.swing.JMenuItem;
 import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
+import javax.swing.JSlider;
 import javax.swing.JToggleButton;
 import javax.swing.JToolBar;
 import javax.swing.KeyStroke;
 import javax.swing.SwingUtilities;
+import javax.swing.event.ChangeEvent;
+import javax.swing.event.ChangeListener;
 import javax.swing.filechooser.FileFilter;
 
 import model.figure.DrawFigureFactory;
@@ -76,12 +79,22 @@ import controller.tool.NullTool;
 
 //TODO This component should be totally generic, being able to host all image types (not only LongType and DoubleType)
 
-public class IddeaComponent extends JPanel implements ActionListener {
+public class IddeaComponent extends JPanel implements ActionListener, ChangeListener {
 
 	private static final long serialVersionUID = -3808140519052170304L;
 
 	// The everything containing scroll-bar
 	private JScrollPane scrollPane;
+	
+	// JSlider for time series
+	private final boolean isTimeSliderVisible = false;
+	private JSlider timeSlider;
+	private int tIndex = 0;
+	
+	// JSlider for volume stack
+	private final boolean isStackSliderVisible = false;
+	private JSlider stackSlider;
+	private int zIndex = 0;
 
 	// InteractiveViewer2D for the imglib2 data to be shown.
 	private InteractiveRealViewer2D< DoubleType > interactiveViewer2D;
@@ -171,6 +184,15 @@ public class IddeaComponent extends JPanel implements ActionListener {
 		scrollPane.setHorizontalScrollBarPolicy( javax.swing.ScrollPaneConstants.HORIZONTAL_SCROLLBAR_NEVER );
 		scrollPane.setVerticalScrollBarPolicy( javax.swing.ScrollPaneConstants.VERTICAL_SCROLLBAR_NEVER );
 		scrollPane.setViewportView( view );
+		
+		// Sliders initialization
+		timeSlider = new JSlider( JSlider.HORIZONTAL, 0, 0, 0 );
+		timeSlider.setName( "TimeSlider" );
+		timeSlider.addChangeListener( this );
+		
+		stackSlider = new JSlider( JSlider.VERTICAL, 0, 0, 0 );
+		stackSlider.setName( "StackSlider" );
+		stackSlider.addChangeListener( this );
 
 		menuBar = new JMenuBar();
 		
@@ -209,6 +231,10 @@ public class IddeaComponent extends JPanel implements ActionListener {
 		
 
 		if ( isMenuVisible ) this.add( menuBar, BorderLayout.NORTH );
+		
+		if ( isTimeSliderVisible ) this.add( timeSlider, BorderLayout.SOUTH );
+		
+		if ( isStackSliderVisible ) this.add( stackSlider, BorderLayout.EAST );
 
 		add( scrollPane, java.awt.BorderLayout.CENTER );
 
@@ -316,15 +342,26 @@ public class IddeaComponent extends JPanel implements ActionListener {
 	 *            onto the raw image data
 	 */
 	public void setDoubleTypeSourceImage( final IntervalView< DoubleType > sourceImage ) {
+		this.ivSourceImage = sourceImage;
+		
 		final DoubleType min = new DoubleType();
 		final DoubleType max = new DoubleType();
 		ImglibUtil.computeMinMax( sourceImage, min, max );
 
 		RealRandomAccessible< DoubleType > interpolated = null;
-		if ( sourceImage.numDimensions() > 2 ) {
-			interpolated = Views.interpolate( Views.extendZero( Views.hyperSlice( sourceImage, 2, 0 ) ), new NearestNeighborInterpolatorFactory< DoubleType >() );
-		} else {
-			interpolated = Views.interpolate( Views.extendZero( sourceImage ), new NearestNeighborInterpolatorFactory< DoubleType >() );
+		
+		switch(sourceImage.numDimensions())
+		{
+			case 2: interpolated = Views.interpolate( Views.extendZero( sourceImage ), new NearestNeighborInterpolatorFactory< DoubleType >() );
+					break;
+			case 3: timeSlider.setMaximum( (int) sourceImage.max( 2 ) ); tIndex = 0; showTimeSlider( true );				
+					interpolated = Views.interpolate( Views.extendZero( Views.hyperSlice( sourceImage, 2, tIndex ) ), new NearestNeighborInterpolatorFactory< DoubleType >() );
+					break;
+			case 4: timeSlider.setMaximum( (int) sourceImage.max( 3 ) ); tIndex = 0; showTimeSlider( true );
+					stackSlider.setMaximum( (int) sourceImage.max( 2 ) ); zIndex = 0; showStackSlider( true ); 
+					interpolated = Views.interpolate( Views.extendZero( Views.hyperSlice( Views.hyperSlice( sourceImage, 3, tIndex ), 2, zIndex ) ), new NearestNeighborInterpolatorFactory< DoubleType >() );
+					break;
+			default : throw new IllegalArgumentException("" + sourceImage.numDimensions() + " Dimension size is not supported!");
 		}
 
 		final RealARGBConverter< DoubleType > converter = new RealARGBConverter< DoubleType >( min.get(), max.get() );
@@ -354,7 +391,7 @@ public class IddeaComponent extends JPanel implements ActionListener {
 	 *            onto the raw image data
 	 */
 	public void setLongTypeSourceImage( final IntervalView< LongType > sourceImage ) {
-
+		
 		final LongType min = new LongType();
 		final LongType max = new LongType();
 		ImglibUtil.computeMinMax( sourceImage, min, max );
@@ -484,6 +521,22 @@ public class IddeaComponent extends JPanel implements ActionListener {
 		if ( visible ) {
 			this.add( menuBar, BorderLayout.NORTH );
 		}
+	}
+	
+	public void showTimeSlider( final boolean visible ) {
+		this.remove( timeSlider );
+		if ( visible ) {
+			this.add( timeSlider, BorderLayout.SOUTH );
+		}
+		this.updateUI();
+	}
+	
+	public void showStackSlider( final boolean visible ) {
+		this.remove( stackSlider );
+		if ( visible ) {
+			this.add( stackSlider, BorderLayout.EAST );
+		}
+		this.updateUI();
 	}
 
 	/**
@@ -877,4 +930,53 @@ public class IddeaComponent extends JPanel implements ActionListener {
 		}
 	}
 
+	/**
+	 * States of TimeSlider or StackSlider are changed.
+	 *
+	 * @param changeEvent the change event
+	 */
+	@Override
+	public void stateChanged( ChangeEvent changeEvent ) {
+        if( timeSlider.equals( changeEvent.getSource() ) )
+        {
+        	tIndex = timeSlider.getValue();
+        	updateView();
+        }
+        else if( stackSlider.equals( changeEvent.getSource() ) )
+        {
+        	zIndex = stackSlider.getValue();
+        	updateView();        	
+        }
+	}
+	
+	/**
+	 * Update the display view.
+	 */
+	private void updateView() {
+
+		IntervalView< DoubleType > interval;
+		
+		switch(ivSourceImage.numDimensions())
+		{
+			case 2: interval = ivSourceImage;
+					break;
+			case 3:	interval = Views.hyperSlice( ivSourceImage, 2, tIndex );
+					break;
+			case 4: interval = Views.hyperSlice( Views.hyperSlice( ivSourceImage, 3, tIndex ), 2, zIndex );
+					break;
+			default : throw new IllegalArgumentException("" + ivSourceImage.numDimensions() + " Dimension size is not supported!");
+		}
+				
+		RealRandomAccessible< DoubleType > interpolated = Views.interpolate( Views.extendZero( interval ), new NearestNeighborInterpolatorFactory< DoubleType >() );
+		interactiveViewer2D.updateSource( interpolated );
+		
+		// In case of needing to update MinMax values when user changes time or stack
+		
+//		final DoubleType min = new DoubleType();
+//		final DoubleType max = new DoubleType();
+//		ImglibUtil.computeMinMax( interval, min, max );
+//		final RealARGBConverter< DoubleType > converter = new RealARGBConverter< DoubleType >( min.get(), max.get() );
+//
+//		updateDoubleTypeSourceAndConverter( interpolated, converter );
+	}
 }
