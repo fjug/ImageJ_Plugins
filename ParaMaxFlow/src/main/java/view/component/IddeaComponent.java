@@ -2,8 +2,10 @@ package view.component;
 
 import java.awt.BorderLayout;
 import java.awt.Dimension;
+import java.awt.Toolkit;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
+import java.awt.event.KeyEvent;
 import java.beans.PropertyChangeEvent;
 import java.beans.PropertyChangeListener;
 import java.io.File;
@@ -13,6 +15,7 @@ import java.net.URI;
 import java.util.HashMap;
 import java.util.Set;
 
+import javax.swing.ActionMap;
 import javax.swing.JFileChooser;
 import javax.swing.JMenu;
 import javax.swing.JMenuBar;
@@ -20,8 +23,13 @@ import javax.swing.JMenuItem;
 import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
+import javax.swing.JSlider;
+import javax.swing.JToggleButton;
 import javax.swing.JToolBar;
+import javax.swing.KeyStroke;
 import javax.swing.SwingUtilities;
+import javax.swing.event.ChangeEvent;
+import javax.swing.event.ChangeListener;
 import javax.swing.filechooser.FileFilter;
 
 import model.figure.DrawFigureFactory;
@@ -37,6 +45,8 @@ import net.imglib2.type.numeric.real.DoubleType;
 import net.imglib2.view.IntervalView;
 import net.imglib2.view.Views;
 
+import org.jhotdraw.app.action.edit.RedoAction;
+import org.jhotdraw.app.action.edit.UndoAction;
 import org.jhotdraw.draw.DefaultDrawingEditor;
 import org.jhotdraw.draw.Drawing;
 import org.jhotdraw.draw.DrawingEditor;
@@ -49,6 +59,7 @@ import org.jhotdraw.draw.io.OutputFormat;
 import org.jhotdraw.draw.tool.Tool;
 import org.jhotdraw.gui.Worker;
 import org.jhotdraw.gui.filechooser.ExtensionFileFilter;
+import org.jhotdraw.undo.UndoRedoManager;
 import org.jhotdraw.util.ResourceBundleUtil;
 
 import view.display.InteractiveDrawingView;
@@ -68,12 +79,22 @@ import controller.tool.NullTool;
 
 //TODO This component should be totally generic, being able to host all image types (not only LongType and DoubleType)
 
-public class IddeaComponent extends JPanel implements ActionListener {
+public class IddeaComponent extends JPanel implements ActionListener, ChangeListener {
 
 	private static final long serialVersionUID = -3808140519052170304L;
 
 	// The everything containing scroll-bar
-	private final JScrollPane scrollPane;
+	private JScrollPane scrollPane;
+	
+	// JSlider for time series
+	private final boolean isTimeSliderVisible = false;
+	private JSlider timeSlider;
+	private int tIndex = 0;
+	
+	// JSlider for volume stack
+	private final boolean isStackSliderVisible = false;
+	private JSlider stackSlider;
+	private int zIndex = 0;
 
 	// InteractiveViewer2D for the imglib2 data to be shown.
 	private InteractiveRealViewer2D< DoubleType > interactiveViewer2D;
@@ -83,20 +104,28 @@ public class IddeaComponent extends JPanel implements ActionListener {
 
 	// JHotDraw related stuff
 	private DrawingEditor editor;
-	private final InteractiveDrawingView view;
+	private InteractiveDrawingView view;
 	private Drawing drawing;
-
+    /**
+     * Each DrawView uses its own undo redo manager.
+     * This allows for undoing and redoing actions per view.
+     */
+    private UndoRedoManager undo;
+    
 	// Toolbar setup and the toolbar itself
 	private boolean isToolbarVisible = false;
 	private String toolbarLocation;
 	private JToolBar tb;
-
+	
 	// Menu related stuff
 	private final boolean isMenuVisible = false;
-	private final JMenuBar menuBar;
-	private final JMenu fileMenu;
-	private final JMenuItem menuItemOpen;
-	private final JMenuItem menuItemSaveAs;
+	private JMenuBar menuBar;
+	private JMenu fileMenu;
+	private JMenuItem menuItemOpen;
+	private JMenuItem menuItemSaveAs;
+	private JMenu editMenu;
+	private JMenuItem menuItemUndo;
+	private JMenuItem menuItemRedo;
 
 	// File chooser for saving and loading
 	private JFileChooser openChooser;
@@ -113,7 +142,10 @@ public class IddeaComponent extends JPanel implements ActionListener {
 	 * image.
 	 */
 	public IddeaComponent() {
-		this( null );
+		
+		view = buildInteractiveDrawingView();
+
+		initComponents(view);
 	}
 
 	/**
@@ -124,19 +156,47 @@ public class IddeaComponent extends JPanel implements ActionListener {
 
 		this.ivSourceImage = sourceImage;
 
+		view = buildInteractiveDrawingView( ivSourceImage );
+
+		initComponents(view);
+	}
+	
+	/**
+	 * Creates an <code>IddeaComponent</code> and adds the given
+	 * <code>dimension</code> to it. Otherwise, 300x200 default screen appears.
+	 */
+	public IddeaComponent( final Dimension dim ) {
+
+		view = buildInteractiveDrawingView( dim );
+
+		initComponents(view);
+	}
+	
+	private void initComponents(InteractiveDrawingView view)
+	{
 		editor = new DefaultDrawingEditor();
 		createEmptyToolbar();
 
 		scrollPane = new javax.swing.JScrollPane();
-		view = buildInteractiveDrawingView( ivSourceImage );
-
+		
 		setLayout( new java.awt.BorderLayout() );
 
 		scrollPane.setHorizontalScrollBarPolicy( javax.swing.ScrollPaneConstants.HORIZONTAL_SCROLLBAR_NEVER );
 		scrollPane.setVerticalScrollBarPolicy( javax.swing.ScrollPaneConstants.VERTICAL_SCROLLBAR_NEVER );
 		scrollPane.setViewportView( view );
+		
+		// Sliders initialization
+		timeSlider = new JSlider( JSlider.HORIZONTAL, 0, 0, 0 );
+		timeSlider.setName( "TimeSlider" );
+		timeSlider.addChangeListener( this );
+		
+		stackSlider = new JSlider( JSlider.VERTICAL, 0, 0, 0 );
+		stackSlider.setName( "StackSlider" );
+		stackSlider.addChangeListener( this );
 
 		menuBar = new JMenuBar();
+		
+		// FileMenu 
 		fileMenu = new JMenu();
 		menuItemOpen = new JMenuItem();
 		menuItemSaveAs = new JMenuItem();
@@ -152,8 +212,29 @@ public class IddeaComponent extends JPanel implements ActionListener {
 		fileMenu.add( menuItemSaveAs );
 
 		menuBar.add( fileMenu );
+		
+		// EditMenu        
+		editMenu = new JMenu();
+		menuItemUndo = new JMenuItem();
+		menuItemRedo = new JMenuItem();
+		
+		editMenu.setText( "Edit" );
+		menuItemUndo.setText( "Undo" );
+		menuItemUndo.addActionListener( this );
+		editMenu.add( menuItemUndo );
+		
+		menuItemRedo.setText( "Redo" );
+		menuItemRedo.addActionListener( this );
+		editMenu.add( menuItemRedo );
+		
+		menuBar.add( editMenu );
+		
 
 		if ( isMenuVisible ) this.add( menuBar, BorderLayout.NORTH );
+		
+		if ( isTimeSliderVisible ) this.add( timeSlider, BorderLayout.SOUTH );
+		
+		if ( isStackSliderVisible ) this.add( stackSlider, BorderLayout.EAST );
 
 		add( scrollPane, java.awt.BorderLayout.CENTER );
 
@@ -163,6 +244,15 @@ public class IddeaComponent extends JPanel implements ActionListener {
 
 		setEditor( editor );
 		view.setDrawing( createDrawing() );
+		
+		// Install undoRedoManager
+        undo = new UndoRedoManager();
+        view.getDrawing().addUndoableEditListener( undo );
+		getActionMap().put( UndoAction.ID, undo.getUndoAction() );
+		getInputMap(WHEN_IN_FOCUSED_WINDOW).put( KeyStroke.getKeyStroke(KeyEvent.VK_Z, java.awt.Event.META_MASK ), UndoAction.ID );
+		
+		getActionMap().put( RedoAction.ID, undo.getRedoAction() );
+		getInputMap(WHEN_IN_FOCUSED_WINDOW).put( KeyStroke.getKeyStroke(KeyEvent.VK_Z, java.awt.Event.META_MASK + java.awt.Event.SHIFT_MASK), RedoAction.ID );
 	}
 
 	//////////////////////////// GETTERS AND SETTERS /////////////////////////////////
@@ -252,15 +342,26 @@ public class IddeaComponent extends JPanel implements ActionListener {
 	 *            onto the raw image data
 	 */
 	public void setDoubleTypeSourceImage( final IntervalView< DoubleType > sourceImage ) {
+		this.ivSourceImage = sourceImage;
+		
 		final DoubleType min = new DoubleType();
 		final DoubleType max = new DoubleType();
 		ImglibUtil.computeMinMax( sourceImage, min, max );
 
 		RealRandomAccessible< DoubleType > interpolated = null;
-		if ( sourceImage.numDimensions() > 2 ) {
-			interpolated = Views.interpolate( Views.extendZero( Views.hyperSlice( sourceImage, 2, 0 ) ), new NearestNeighborInterpolatorFactory< DoubleType >() );
-		} else {
-			interpolated = Views.interpolate( Views.extendZero( sourceImage ), new NearestNeighborInterpolatorFactory< DoubleType >() );
+		
+		switch(sourceImage.numDimensions())
+		{
+			case 2: interpolated = Views.interpolate( Views.extendZero( sourceImage ), new NearestNeighborInterpolatorFactory< DoubleType >() );
+					break;
+			case 3: timeSlider.setMaximum( (int) sourceImage.max( 2 ) ); tIndex = 0; showTimeSlider( true );				
+					interpolated = Views.interpolate( Views.extendZero( Views.hyperSlice( sourceImage, 2, tIndex ) ), new NearestNeighborInterpolatorFactory< DoubleType >() );
+					break;
+			case 4: timeSlider.setMaximum( (int) sourceImage.max( 3 ) ); tIndex = 0; showTimeSlider( true );
+					stackSlider.setMaximum( (int) sourceImage.max( 2 ) ); zIndex = 0; showStackSlider( true ); 
+					interpolated = Views.interpolate( Views.extendZero( Views.hyperSlice( Views.hyperSlice( sourceImage, 3, tIndex ), 2, zIndex ) ), new NearestNeighborInterpolatorFactory< DoubleType >() );
+					break;
+			default : throw new IllegalArgumentException("" + sourceImage.numDimensions() + " Dimension size is not supported!");
 		}
 
 		final RealARGBConverter< DoubleType > converter = new RealARGBConverter< DoubleType >( min.get(), max.get() );
@@ -290,7 +391,7 @@ public class IddeaComponent extends JPanel implements ActionListener {
 	 *            onto the raw image data
 	 */
 	public void setLongTypeSourceImage( final IntervalView< LongType > sourceImage ) {
-
+		
 		final LongType min = new LongType();
 		final LongType max = new LongType();
 		ImglibUtil.computeMinMax( sourceImage, min, max );
@@ -316,9 +417,14 @@ public class IddeaComponent extends JPanel implements ActionListener {
 
 	//////////////////////////// OVERRIDDEN /////////////////////////////////
 
+    /**
+     * Set the {@link Dimension} that contains the input image's dimension
+     * information and propagate the dimension information to the JHotDrawDisplay.
+     * @see javax.swing.JComponent#setPreferredSize(java.awt.Dimension)
+     */
 	@Override
 	public void setPreferredSize( final Dimension dim ) {
-		interactiveViewer2D.getJHotDrawDisplay().setPreferredSize( dim );
+		interactiveViewer2D.getJHotDrawDisplay().setImageDim( dim );
 	}
 
 	/**
@@ -401,6 +507,10 @@ public class IddeaComponent extends JPanel implements ActionListener {
 					}
 				}.start();
 			}
+		} else if ( e.getSource().equals( menuItemUndo ) ) {
+			getActionMap().get(UndoAction.ID).actionPerformed( e );
+		} else if ( e.getSource().equals( menuItemRedo ) ) {
+			getActionMap().get(RedoAction.ID).actionPerformed( e );
 		}
 	}
 
@@ -411,6 +521,22 @@ public class IddeaComponent extends JPanel implements ActionListener {
 		if ( visible ) {
 			this.add( menuBar, BorderLayout.NORTH );
 		}
+	}
+	
+	public void showTimeSlider( final boolean visible ) {
+		this.remove( timeSlider );
+		if ( visible ) {
+			this.add( timeSlider, BorderLayout.SOUTH );
+		}
+		this.updateUI();
+	}
+	
+	public void showStackSlider( final boolean visible ) {
+		this.remove( stackSlider );
+		if ( visible ) {
+			this.add( stackSlider, BorderLayout.EAST );
+		}
+		this.updateUI();
 	}
 
 	/**
@@ -443,12 +569,12 @@ public class IddeaComponent extends JPanel implements ActionListener {
 	 * @param loadedDrawing
 	 */
 	protected void setDrawing( final Drawing loadedDrawing ) {
-//        undoManager.discardAllEdits();
 		if ( view.getDrawing() != null ) {
-//            view.getDrawing().removeUndoableEditListener(undoManager);
+            view.getDrawing().removeUndoableEditListener(undo);
 		}
 		view.setDrawing( loadedDrawing );
-//        loadedDrawing.addUndoableEditListener(undoManager);
+        view.getDrawing().addUndoableEditListener(undo);
+        undo.discardAllEdits();
 		this.drawing = loadedDrawing;
 	}
 
@@ -463,24 +589,54 @@ public class IddeaComponent extends JPanel implements ActionListener {
 	 * @return
 	 */
 	private InteractiveDrawingView buildInteractiveDrawingView( final IntervalView< DoubleType > sourceImage ) {
-		if ( sourceImage != null ) {
-			final AffineTransform2D transform = new AffineTransform2D();
 
-			final DoubleType min = new DoubleType();
-			final DoubleType max = new DoubleType();
-			ImglibUtil.computeMinMax( sourceImage, min, max );
+		final AffineTransform2D transform = new AffineTransform2D();
 
-			final RealRandomAccessible< DoubleType > interpolated = Views.interpolate( Views.extendZero( sourceImage ), new NearestNeighborInterpolatorFactory< DoubleType >() );
-			final RealARGBConverter< DoubleType > converter = new RealARGBConverter< DoubleType >( min.get(), max.get() );
+		final DoubleType min = new DoubleType();
+		final DoubleType max = new DoubleType();
+		ImglibUtil.computeMinMax( sourceImage, min, max );
 
-			interactiveViewer2D = new InteractiveRealViewer2D< DoubleType >( ( int ) sourceImage.max( 0 ), ( int ) sourceImage.max( 1 ), interpolated, transform, converter );
-		} else {
-			final AffineTransform2D transform = new AffineTransform2D();
-			final RealRandomAccessible< DoubleType > dummy = new DummyRealRandomAccessible();
-			final RealARGBConverter< DoubleType > converter = new RealARGBConverter< DoubleType >( 0, 0 );
+		final RealRandomAccessible< DoubleType > interpolated = Views.interpolate( Views.extendZero( sourceImage ), new NearestNeighborInterpolatorFactory< DoubleType >() );
+		final RealARGBConverter< DoubleType > converter = new RealARGBConverter< DoubleType >( min.get(), max.get() );
 
-			interactiveViewer2D = new InteractiveRealViewer2D< DoubleType >( 300, 200, dummy, transform, converter );
-		}
+		interactiveViewer2D = new InteractiveRealViewer2D< DoubleType >( ( int ) sourceImage.max( 0 ), ( int ) sourceImage.max( 1 ), interpolated, transform, converter );
+
+		return interactiveViewer2D.getJHotDrawDisplay();
+	}
+	
+	/**
+	 * Builds default Interactive Drawing view
+	 * Caution: this function also creates a new
+	 * <code>interactiveViewer2D</code>.
+	 * 
+	 * @return
+	 */
+	private InteractiveDrawingView buildInteractiveDrawingView( ) {
+
+		final AffineTransform2D transform = new AffineTransform2D();
+		final RealRandomAccessible< DoubleType > dummy = new DummyRealRandomAccessible();
+		final RealARGBConverter< DoubleType > converter = new RealARGBConverter< DoubleType >( 0, 0 );
+
+		interactiveViewer2D = new InteractiveRealViewer2D< DoubleType >( 300, 200, dummy, transform, converter );
+
+		return interactiveViewer2D.getJHotDrawDisplay();
+	}
+	
+	/**
+	 * Builds an Interactive Drawing view from a given Dimension <code>dim</code>
+	 * Caution: this function also creates a new
+	 * <code>interactiveViewer2D</code>.
+	 * 
+	 * @param dim
+	 * @return
+	 */
+	private InteractiveDrawingView buildInteractiveDrawingView( final Dimension dim ) {
+
+		final AffineTransform2D transform = new AffineTransform2D();
+		final RealRandomAccessible< DoubleType > dummy = new DummyRealRandomAccessible();
+		final RealARGBConverter< DoubleType > converter = new RealARGBConverter< DoubleType >( 0, 0 );
+
+		interactiveViewer2D = new InteractiveRealViewer2D< DoubleType >( dim.width, dim.height, dummy, transform, converter );		
 
 		return interactiveViewer2D.getJHotDrawDisplay();
 	}
@@ -535,6 +691,16 @@ public class IddeaComponent extends JPanel implements ActionListener {
 	public void addTool( final Tool tool, final String labelKey, final ResourceBundleUtil labels ) {
 		ButtonFactory.addToolTo( tb, editor, tool, labelKey, labels );
 	}
+	
+
+	/**
+	 * Adds a <code>JToogleButton</code> to the toolbar.
+	 *
+	 * @param button the button
+	 */
+	public void addToolBar( JToggleButton button ) {
+		tb.add(button);
+	}
 
 	/**
 	 * @param strokes
@@ -559,6 +725,7 @@ public class IddeaComponent extends JPanel implements ActionListener {
 	private void updateDoubleTypeSourceAndConverter( final RealRandomAccessible source, final RealARGBConverter converter ) {
 		interactiveViewer2D.updateConverter( converter );
 		interactiveViewer2D.updateSource( source );
+		interactiveViewer2D.getJHotDrawDisplay().resetTransform();
 	}
 
 	/** Lazily creates a JFileChooser and returns it. */
@@ -763,4 +930,53 @@ public class IddeaComponent extends JPanel implements ActionListener {
 		}
 	}
 
+	/**
+	 * States of TimeSlider or StackSlider are changed.
+	 *
+	 * @param changeEvent the change event
+	 */
+	@Override
+	public void stateChanged( ChangeEvent changeEvent ) {
+        if( timeSlider.equals( changeEvent.getSource() ) )
+        {
+        	tIndex = timeSlider.getValue();
+        	updateView();
+        }
+        else if( stackSlider.equals( changeEvent.getSource() ) )
+        {
+        	zIndex = stackSlider.getValue();
+        	updateView();        	
+        }
+	}
+	
+	/**
+	 * Update the display view.
+	 */
+	private void updateView() {
+
+		IntervalView< DoubleType > interval;
+		
+		switch(ivSourceImage.numDimensions())
+		{
+			case 2: interval = ivSourceImage;
+					break;
+			case 3:	interval = Views.hyperSlice( ivSourceImage, 2, tIndex );
+					break;
+			case 4: interval = Views.hyperSlice( Views.hyperSlice( ivSourceImage, 3, tIndex ), 2, zIndex );
+					break;
+			default : throw new IllegalArgumentException("" + ivSourceImage.numDimensions() + " Dimension size is not supported!");
+		}
+				
+		RealRandomAccessible< DoubleType > interpolated = Views.interpolate( Views.extendZero( interval ), new NearestNeighborInterpolatorFactory< DoubleType >() );
+		interactiveViewer2D.updateSource( interpolated );
+		
+		// In case of needing to update MinMax values when user changes time or stack
+		
+//		final DoubleType min = new DoubleType();
+//		final DoubleType max = new DoubleType();
+//		ImglibUtil.computeMinMax( interval, min, max );
+//		final RealARGBConverter< DoubleType > converter = new RealARGBConverter< DoubleType >( min.get(), max.get() );
+//
+//		updateDoubleTypeSourceAndConverter( interpolated, converter );
+	}
 }

@@ -26,6 +26,8 @@ import javax.swing.AbstractAction;
 import javax.swing.BorderFactory;
 import javax.swing.Box;
 import javax.swing.BoxLayout;
+import javax.swing.ButtonGroup;
+import javax.swing.ImageIcon;
 import javax.swing.JButton;
 import javax.swing.JFileChooser;
 import javax.swing.JFrame;
@@ -56,8 +58,10 @@ import org.jhotdraw.draw.AttributeKey;
 import org.jhotdraw.draw.BezierFigure;
 import org.jhotdraw.draw.EllipseFigure;
 import org.jhotdraw.draw.LineFigure;
+import org.jhotdraw.draw.action.ButtonFactory;
 import org.jhotdraw.draw.tool.BezierTool;
 import org.jhotdraw.draw.tool.CreationTool;
+import org.jhotdraw.util.Images;
 import org.jhotdraw.util.ResourceBundleUtil;
 
 import view.component.IddeaComponent;
@@ -75,8 +79,7 @@ import com.jug.util.converter.RealDoubleNormalizeConverter;
  */
 public class ParaMaxFlowPanel extends JPanel implements ActionListener, ChangeListener {
 
-//	private static final String DEFAULT_PATH = "/Users/moon/Projects/git-projects/fjug/ImageJ_PlugIns/ParaMaxFlow/src/main/resources/";
-	private static final String DEFAULT_PATH = "/Users/jug/Dropbox/WorkingData/Repositories/GIT/ImageJ_PlugIns/ParaMaxFlow/src/main/resources";
+	private static final String DEFAULT_PATH = System.getProperty("user.dir") + "/src/main/resources";
 	final int PLOT_STEPS = 200;
 
 	private static ParaMaxFlowPanel main;
@@ -96,6 +99,10 @@ public class ParaMaxFlowPanel extends JPanel implements ActionListener, ChangeLi
 	private final IddeaComponent icSeg;
 	private JSlider sliderSegmentation;
 	private JButton bExportCurrentSegmentation;
+	private JToggleButton bForeground;
+	private JToggleButton bBackground;
+	final HashMap< AttributeKey, Object > attributeMap = new HashMap< AttributeKey, Object >();
+	
 	private long currSeg = -1;
 	private long numSols = -1;
 
@@ -151,6 +158,7 @@ public class ParaMaxFlowPanel extends JPanel implements ActionListener, ChangeLi
 	@SuppressWarnings( { "unchecked", "rawtypes" } )
 	public ParaMaxFlowPanel( final Frame frame, final ImagePlus imgPlus ) {
 		super( new BorderLayout( 5, 5 ) );
+		
 		setBorder( BorderFactory.createEmptyBorder( 10, 15, 5, 15 ) );
 		this.frame = frame;
 		this.imgPlus = imgPlus;
@@ -166,12 +174,12 @@ public class ParaMaxFlowPanel extends JPanel implements ActionListener, ChangeLi
 		this.imgSegmentation = null;
 
 		this.icOrig = new IddeaComponent( Views.interval( imgOrigNorm, imgOrigNorm ) );
-		this.icSumImg = new IddeaComponent();
-		this.icSeg = new IddeaComponent();
+		this.icSumImg = new IddeaComponent( new Dimension( imgPlus.getWidth(), imgPlus.getHeight() ));
+		this.icSeg = new IddeaComponent( new Dimension( imgPlus.getWidth(), imgPlus.getHeight() ));
 
-		this.icCostFunctionModulation = new IddeaComponent();
-		this.icUnaryPotentials = new IddeaComponent();
-		this.icPairwisePotentials = new IddeaComponent();
+		this.icCostFunctionModulation = new IddeaComponent( new Dimension( imgPlus.getWidth(), imgPlus.getHeight() ));
+		this.icUnaryPotentials = new IddeaComponent( new Dimension( imgPlus.getWidth(), imgPlus.getHeight() ));
+		this.icPairwisePotentials = new IddeaComponent( new Dimension( imgPlus.getWidth(), imgPlus.getHeight() ));
 
 		buildGui();
 
@@ -404,47 +412,48 @@ public class ParaMaxFlowPanel extends JPanel implements ActionListener, ChangeLi
 	 */
 	private void installSegmentationToolbar( final IddeaComponent iddeaComponent ) {
 		final ResourceBundleUtil labels = ResourceBundleUtil.getBundle( "org.jhotdraw.draw.Labels" );
-		final ResourceBundleUtil mylabels = ResourceBundleUtil.getBundle( "model.Labels" );
 
 		iddeaComponent.installDefaultToolBar();
 
+		// Install Foreground / Background context switcher
 		iddeaComponent.addToolBarSeparator();
+		
+		ImageIcon foregroundIcon = new ImageIcon( Images.createImage( ButtonFactory.class, "/org/jhotdraw/draw/action/images/attributeFontBold_de.png" ) );
+		bForeground = new JToggleButton( foregroundIcon, true );
+		bForeground.addChangeListener( this );
 
-		final HashMap< AttributeKey, Object > foreground = new HashMap< AttributeKey, Object >();
-		org.jhotdraw.draw.AttributeKeys.STROKE_COLOR.put( foreground, colorForeground );
-		org.jhotdraw.draw.AttributeKeys.STROKE_WIDTH.put( foreground, 15d );
-		iddeaComponent.addTool( new BezierTool( new BezierFigure(), foreground ), "edit.scribbleForeground", mylabels );
+		ImageIcon backgroundIcon = new ImageIcon( Images.createImage( ButtonFactory.class, "/org/jhotdraw/draw/action/images/attributeFontBold.png" ) );
+		bBackground = new JToggleButton( backgroundIcon );
+		bBackground.addChangeListener( this );
 
-		final HashMap< AttributeKey, Object > background = new HashMap< AttributeKey, Object >();
-		org.jhotdraw.draw.AttributeKeys.STROKE_COLOR.put( background, colorBackground );
-		org.jhotdraw.draw.AttributeKeys.STROKE_WIDTH.put( background, 15d );
-		iddeaComponent.addTool( new BezierTool( new BezierFigure(), background ), "edit.scribbleBackground", mylabels );
+		ButtonGroup group = new ButtonGroup();
+		group.add( bForeground );
+		group.add( bBackground );
 
+		iddeaComponent.addToolBar( bForeground );
+		iddeaComponent.addToolBar( bBackground );
+
+		// Install Drawing Tools
+		iddeaComponent.addToolBarSeparator();
+		
 		iddeaComponent.addToolStrokeWidthButton( new double[] { 1d, 5d, 10d, 15d, 30d } );
-
-		iddeaComponent.addToolBarSeparator();
-
-		final HashMap< AttributeKey, Object > line = new HashMap< AttributeKey, Object >();
-		org.jhotdraw.draw.AttributeKeys.FILL_COLOR.put( line, new Color( 0.0f, 0.0f, 1.0f, 0.1f ) );
-		org.jhotdraw.draw.AttributeKeys.STROKE_COLOR.put( line, new Color( 0.0f, 0.0f, 1.0f, 0.33f ) );
-		iddeaComponent.addTool( new CreationTool( new LineFigure(), line ), "edit.createLine", labels );
-
-		final HashMap< AttributeKey, Object > ellipse = new HashMap< AttributeKey, Object >();
-		org.jhotdraw.draw.AttributeKeys.FILL_COLOR.put( ellipse, new Color( 0.0f, 0.0f, 1.0f, 0.1f ) );
-		org.jhotdraw.draw.AttributeKeys.STROKE_COLOR.put( ellipse, new Color( 0.0f, 0.0f, 1.0f, 0.33f ) );
-		iddeaComponent.addTool( new CreationTool( new EllipseFigure(), ellipse ), "edit.createEllipse", labels );
-
-		final HashMap< AttributeKey, Object > scribble = new HashMap< AttributeKey, Object >();
-		org.jhotdraw.draw.AttributeKeys.FILL_COLOR.put( scribble, new Color( 0.0f, 0.0f, 1.0f, 0.1f ) );
-		org.jhotdraw.draw.AttributeKeys.STROKE_COLOR.put( scribble, new Color( 0.0f, 0.0f, 1.0f, 0.33f ) );
-		org.jhotdraw.draw.AttributeKeys.STROKE_WIDTH.put( scribble, 15d );
-		iddeaComponent.addTool( new BezierTool( new BezierFigure( false ), scribble ), "edit.createScribble", labels );
-
-		final HashMap< AttributeKey, Object > polygon = new HashMap< AttributeKey, Object >();
-		org.jhotdraw.draw.AttributeKeys.FILL_COLOR.put( polygon, new Color( 0.0f, 0.0f, 1.0f, 0.1f ) );
-		org.jhotdraw.draw.AttributeKeys.STROKE_COLOR.put( polygon, new Color( 0.0f, 0.0f, 1.0f, 0.33f ) );
-		iddeaComponent.addTool( new BezierTool( new BezierFigure( true ), polygon ), "edit.createPolygon", labels );
-
+				
+		org.jhotdraw.draw.AttributeKeys.STROKE_COLOR.put( attributeMap, colorForeground );
+		org.jhotdraw.draw.AttributeKeys.STROKE_WIDTH.put( attributeMap, 5d );
+		org.jhotdraw.draw.AttributeKeys.FILL_COLOR.put( attributeMap, new Color( 0.0f, 0.0f, 1.0f, 0.1f ) );
+		
+		CreationTool tool = new CreationTool( new LineFigure(), attributeMap );
+		// This allows to create multiple figures consecutively.
+		tool.setToolDoneAfterCreation( false );
+		iddeaComponent.addTool( tool, "edit.createLine", labels );
+		
+		tool = new CreationTool( new EllipseFigure(), attributeMap );
+		// This allows to create multiple figures consecutively.
+		tool.setToolDoneAfterCreation( false );
+		iddeaComponent.addTool( tool, "edit.createEllipse", labels );
+		
+		iddeaComponent.addTool( new BezierTool( new BezierFigure( false ), attributeMap ), "edit.createScribble", labels );
+		iddeaComponent.addTool( new BezierTool( new BezierFigure( true ), attributeMap ), "edit.createPolygon", labels );
 	}
 
 	/**
@@ -841,6 +850,14 @@ public class ParaMaxFlowPanel extends JPanel implements ActionListener, ChangeLi
 			this.imgSegmentation = SegmentationMagic.returnSegmentation( imgSumLong, currSeg );
 			this.icSeg.setLongTypeSourceImage( imgSegmentation );
 		}
+		else if( e.getSource().equals( bForeground ) || e.getSource().equals( bBackground ))
+		{
+			// Checking the Foreground or Background
+			if(bForeground.isSelected())
+				org.jhotdraw.draw.AttributeKeys.STROKE_COLOR.put( attributeMap, colorForeground );
+			else if(bBackground.isSelected())
+				org.jhotdraw.draw.AttributeKeys.STROKE_COLOR.put( attributeMap, colorBackground );
+		}
 	}
 
 	public static void main( final String[] args ) {
@@ -848,9 +865,16 @@ public class ParaMaxFlowPanel extends JPanel implements ActionListener, ChangeLi
 
 		if ( temp == null ) {
 			temp = new ImageJ();
-			// IJ.open( "/Users/moon/Documents/clown.tif" );
+			
+			if(args.length > 0) {
+				IJ.open( args[0] );	
+			}
+			else {
+				throw new IllegalArgumentException("Please, set an image path in the program arguments.");
+			}
+			 
 			// IJ.open( "/Users/moon/Pictures/spim/spim-0.tif" );
-			IJ.open( "/Users/jug/Desktop/clown.tif" );
+			//IJ.open( "/Users/jug/Desktop/clown.tif" );
 //			IJ.open( "/Users/jug/Desktop/demo.tif" );
 		}
 

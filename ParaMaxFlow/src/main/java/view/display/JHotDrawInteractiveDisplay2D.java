@@ -44,7 +44,11 @@ public class JHotDrawInteractiveDisplay2D<T> extends InteractiveDrawingView
      */
     final protected CopyOnWriteArrayList<OverlayRenderer> overlayRenderers;
 
+    /** The origin transform. */
     AffineTransform originTransform;
+    
+    /** The image dim. */
+    protected Dimension imageDim;
 
 
     /**
@@ -130,6 +134,28 @@ public class JHotDrawInteractiveDisplay2D<T> extends InteractiveDrawingView
     public void deactivateHandler()
     {
         removeHandler( handler );
+    }
+
+    public void setImageDim(Dimension dim)
+    {
+        imageDim = dim;
+    }
+
+    /**
+     * Reset viewerTransform by double-click.
+     */
+    public void resetTransform()
+    {
+        AffineTransform2D reset = new AffineTransform2D();
+        handler.setTransform((T) reset);
+        handler.setCanvasSize( imageDim.width, imageDim.height, false );
+
+        final int w = getWidth();
+        final int h = getHeight();
+
+        handler.setCanvasSize( w, h, true );
+        for ( final OverlayRenderer or : overlayRenderers )
+            or.setCanvasSize( w, h );
     }
 
     @Override
