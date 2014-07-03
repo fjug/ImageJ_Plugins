@@ -848,7 +848,8 @@ public class ParaMaxFlowPanel extends JPanel implements ActionListener, ChangeLi
 		if ( e.getSource().equals( sliderSegmentation ) ) {
 			currSeg = sliderSegmentation.getValue();
 			this.imgSegmentation = SegmentationMagic.returnSegmentation( imgSumLong, currSeg );
-			this.icSeg.setLongTypeSourceImage( imgSegmentation );
+			this.icSeg.setLongTypeOnlySourceImage( imgSegmentation );
+			//this.icSeg.setLongTypeSourceImage( imgSegmentation );
 		}
 		else if( e.getSource().equals( bForeground ) || e.getSource().equals( bBackground ))
 		{

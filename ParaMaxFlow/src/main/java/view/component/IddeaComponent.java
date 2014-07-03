@@ -410,6 +410,23 @@ public class IddeaComponent extends JPanel implements ActionListener, ChangeList
 
 		updateDoubleTypeSourceAndConverter( interpolated, converter );
 	}
+	
+	/**
+	 * Updates the only sourceImage without updating converter
+	 * 
+	 * @param sourceImage
+	 *            an IntervalView<LongType> containing the desired view
+	 *            onto the raw image data
+	 */
+	public void setLongTypeOnlySourceImage( final RandomAccessibleInterval< LongType > raiSource ) 
+	{		
+		final IntervalView< LongType > sourceImage = Views.interval( raiSource, raiSource );
+		final RealRandomAccessible< LongType > interpolated = Views.interpolate( Views.extendZero( sourceImage ), new NearestNeighborInterpolatorFactory< LongType >() );
+
+		updateDoubleTypeSource( interpolated );
+	}
+	
+		
 
 	/**
 	 * Sets the image data to be displayed.
@@ -751,6 +768,15 @@ public class IddeaComponent extends JPanel implements ActionListener, ChangeList
 		interactiveViewer2D.updateConverter( converter );
 		interactiveViewer2D.updateSource( source );
 		interactiveViewer2D.getJHotDrawDisplay().resetTransform();
+	}
+	
+	/**
+	 * Update the realRandomSource with new source.
+	 * 
+	 * @param source
+	 */
+	private void updateDoubleTypeSource( final RealRandomAccessible source ) {
+		interactiveViewer2D.updateSource( source );
 	}
 
 	/** Lazily creates a JFileChooser and returns it. */
