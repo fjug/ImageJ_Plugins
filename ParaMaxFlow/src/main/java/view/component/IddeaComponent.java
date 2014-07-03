@@ -87,14 +87,16 @@ public class IddeaComponent extends JPanel implements ActionListener, ChangeList
 	private JScrollPane scrollPane;
 	
 	// JSlider for time series
-	private final boolean isTimeSliderVisible = false;
+	private boolean isTimeSliderVisible = false;
 	private JSlider timeSlider;
 	private int tIndex = 0;
+	private int tMax = 0;
 	
 	// JSlider for volume stack
-	private final boolean isStackSliderVisible = false;
+	private boolean isStackSliderVisible = false;
 	private JSlider stackSlider;
 	private int zIndex = 0;
+	private int zMax = 0;
 
 	// InteractiveViewer2D for the imglib2 data to be shown.
 	private InteractiveRealViewer2D< DoubleType > interactiveViewer2D;
@@ -232,10 +234,16 @@ public class IddeaComponent extends JPanel implements ActionListener, ChangeList
 
 		if ( isMenuVisible ) this.add( menuBar, BorderLayout.NORTH );
 		
-		if ( isTimeSliderVisible ) this.add( timeSlider, BorderLayout.SOUTH );
-		
-		if ( isStackSliderVisible ) this.add( stackSlider, BorderLayout.EAST );
+        if ( isTimeSliderVisible ) {
+            this.add(timeSlider, BorderLayout.SOUTH);
+            timeSlider.setMaximum(tMax);
+        }
 
+        if ( isStackSliderVisible ) {
+            this.add( stackSlider, BorderLayout.EAST );
+            stackSlider.setMaximum(zMax);
+        }
+        
 		add( scrollPane, java.awt.BorderLayout.CENTER );
 
 		if ( isToolbarVisible ) {
@@ -589,19 +597,36 @@ public class IddeaComponent extends JPanel implements ActionListener, ChangeList
 	 * @return
 	 */
 	private InteractiveDrawingView buildInteractiveDrawingView( final IntervalView< DoubleType > sourceImage ) {
+        final AffineTransform2D transform = new AffineTransform2D();
 
-		final AffineTransform2D transform = new AffineTransform2D();
+        final DoubleType min = new DoubleType();
+        final DoubleType max = new DoubleType();
+        ImglibUtil.computeMinMax(sourceImage, min, max);
 
-		final DoubleType min = new DoubleType();
-		final DoubleType max = new DoubleType();
-		ImglibUtil.computeMinMax( sourceImage, min, max );
+        RealRandomAccessible< DoubleType > interpolated = null;
 
-		final RealRandomAccessible< DoubleType > interpolated = Views.interpolate( Views.extendZero( sourceImage ), new NearestNeighborInterpolatorFactory< DoubleType >() );
-		final RealARGBConverter< DoubleType > converter = new RealARGBConverter< DoubleType >( min.get(), max.get() );
+        switch(sourceImage.numDimensions())
+        {
+            case 2: interpolated = Views.interpolate( Views.extendZero( sourceImage ), new NearestNeighborInterpolatorFactory< DoubleType >() );
+                break;
+            case 3: tMax = (int) sourceImage.max( 2 ); isTimeSliderVisible = true; tIndex = 0;
+                interpolated = Views.interpolate( Views.extendZero( Views.hyperSlice( sourceImage, 2, tIndex ) ), new NearestNeighborInterpolatorFactory< DoubleType >() );
+                break;
+            case 4: tMax = (int) sourceImage.max( 3 ); isTimeSliderVisible = true; tIndex = 0;
+                zMax = (int) sourceImage.max( 2 ); isStackSliderVisible = true; zIndex = 0;
+                interpolated = Views.interpolate( Views.extendZero( Views.hyperSlice( Views.hyperSlice( sourceImage, 3, tIndex ), 2, zIndex ) ), new NearestNeighborInterpolatorFactory< DoubleType >() );
+                break;
+            default : throw new IllegalArgumentException("" + sourceImage.numDimensions() + " Dimension size is not supported!");
+        }
 
-		interactiveViewer2D = new InteractiveRealViewer2D< DoubleType >( ( int ) sourceImage.max( 0 ), ( int ) sourceImage.max( 1 ), interpolated, transform, converter );
+        final RealARGBConverter< DoubleType > converter = new RealARGBConverter< DoubleType >( min.get(), max.get() );
 
-		return interactiveViewer2D.getJHotDrawDisplay();
+        int width = ( int ) sourceImage.max( 0 );
+        int height = ( int ) sourceImage.max( 1 );
+
+        interactiveViewer2D = new InteractiveRealViewer2D< DoubleType >( width, height, interpolated, transform, converter );
+
+        return interactiveViewer2D.getJHotDrawDisplay();
 	}
 	
 	/**
