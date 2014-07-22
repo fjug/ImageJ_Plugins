@@ -79,7 +79,7 @@ import com.jug.util.converter.RealDoubleNormalizeConverter;
  */
 public class ParaMaxFlowPanel extends JPanel implements ActionListener, ChangeListener {
 
-	private static final String DEFAULT_PATH = System.getProperty("user.dir") + "/src/main/resources";
+	private static final String DEFAULT_PATH = System.getProperty( "user.dir" ) + "/src/main/resources";
 	final int PLOT_STEPS = 200;
 
 	private static ParaMaxFlowPanel main;
@@ -102,7 +102,7 @@ public class ParaMaxFlowPanel extends JPanel implements ActionListener, ChangeLi
 	private JToggleButton bForeground;
 	private JToggleButton bBackground;
 	final HashMap< AttributeKey, Object > attributeMap = new HashMap< AttributeKey, Object >();
-	
+
 	private long currSeg = -1;
 	private long numSols = -1;
 
@@ -158,7 +158,7 @@ public class ParaMaxFlowPanel extends JPanel implements ActionListener, ChangeLi
 	@SuppressWarnings( { "unchecked", "rawtypes" } )
 	public ParaMaxFlowPanel( final Frame frame, final ImagePlus imgPlus ) {
 		super( new BorderLayout( 5, 5 ) );
-		
+
 		setBorder( BorderFactory.createEmptyBorder( 10, 15, 5, 15 ) );
 		this.frame = frame;
 		this.imgPlus = imgPlus;
@@ -174,12 +174,12 @@ public class ParaMaxFlowPanel extends JPanel implements ActionListener, ChangeLi
 		this.imgSegmentation = null;
 
 		this.icOrig = new IddeaComponent( Views.interval( imgOrigNorm, imgOrigNorm ) );
-		this.icSumImg = new IddeaComponent( new Dimension( imgPlus.getWidth(), imgPlus.getHeight() ));
-		this.icSeg = new IddeaComponent( new Dimension( imgPlus.getWidth(), imgPlus.getHeight() ));
+		this.icSumImg = new IddeaComponent( new Dimension( imgPlus.getWidth(), imgPlus.getHeight() ) );
+		this.icSeg = new IddeaComponent( new Dimension( imgPlus.getWidth(), imgPlus.getHeight() ) );
 
-		this.icCostFunctionModulation = new IddeaComponent( new Dimension( imgPlus.getWidth(), imgPlus.getHeight() ));
-		this.icUnaryPotentials = new IddeaComponent( new Dimension( imgPlus.getWidth(), imgPlus.getHeight() ));
-		this.icPairwisePotentials = new IddeaComponent( new Dimension( imgPlus.getWidth(), imgPlus.getHeight() ));
+		this.icCostFunctionModulation = new IddeaComponent( new Dimension( imgPlus.getWidth(), imgPlus.getHeight() ) );
+		this.icUnaryPotentials = new IddeaComponent( new Dimension( imgPlus.getWidth(), imgPlus.getHeight() ) );
+		this.icPairwisePotentials = new IddeaComponent( new Dimension( imgPlus.getWidth(), imgPlus.getHeight() ) );
 
 		buildGui();
 
@@ -417,16 +417,16 @@ public class ParaMaxFlowPanel extends JPanel implements ActionListener, ChangeLi
 
 		// Install Foreground / Background context switcher
 		iddeaComponent.addToolBarSeparator();
-		
-		ImageIcon foregroundIcon = new ImageIcon( Images.createImage( ButtonFactory.class, "/org/jhotdraw/draw/action/images/attributeFontBold_de.png" ) );
+
+		final ImageIcon foregroundIcon = new ImageIcon( Images.createImage( ButtonFactory.class, "/org/jhotdraw/draw/action/images/attributeFontBold_de.png" ) );
 		bForeground = new JToggleButton( foregroundIcon, true );
 		bForeground.addChangeListener( this );
 
-		ImageIcon backgroundIcon = new ImageIcon( Images.createImage( ButtonFactory.class, "/org/jhotdraw/draw/action/images/attributeFontBold.png" ) );
+		final ImageIcon backgroundIcon = new ImageIcon( Images.createImage( ButtonFactory.class, "/org/jhotdraw/draw/action/images/attributeFontBold.png" ) );
 		bBackground = new JToggleButton( backgroundIcon );
 		bBackground.addChangeListener( this );
 
-		ButtonGroup group = new ButtonGroup();
+		final ButtonGroup group = new ButtonGroup();
 		group.add( bForeground );
 		group.add( bBackground );
 
@@ -435,23 +435,23 @@ public class ParaMaxFlowPanel extends JPanel implements ActionListener, ChangeLi
 
 		// Install Drawing Tools
 		iddeaComponent.addToolBarSeparator();
-		
+
 		iddeaComponent.addToolStrokeWidthButton( new double[] { 1d, 5d, 10d, 15d, 30d } );
-				
+
 		org.jhotdraw.draw.AttributeKeys.STROKE_COLOR.put( attributeMap, colorForeground );
 		org.jhotdraw.draw.AttributeKeys.STROKE_WIDTH.put( attributeMap, 5d );
 		org.jhotdraw.draw.AttributeKeys.FILL_COLOR.put( attributeMap, new Color( 0.0f, 0.0f, 1.0f, 0.1f ) );
-		
+
 		CreationTool tool = new CreationTool( new LineFigure(), attributeMap );
 		// This allows to create multiple figures consecutively.
 		tool.setToolDoneAfterCreation( false );
 		iddeaComponent.addTool( tool, "edit.createLine", labels );
-		
+
 		tool = new CreationTool( new EllipseFigure(), attributeMap );
 		// This allows to create multiple figures consecutively.
 		tool.setToolDoneAfterCreation( false );
 		iddeaComponent.addTool( tool, "edit.createEllipse", labels );
-		
+
 		iddeaComponent.addTool( new BezierTool( new BezierFigure( false ), attributeMap ), "edit.createScribble", labels );
 		iddeaComponent.addTool( new BezierTool( new BezierFigure( true ), attributeMap ), "edit.createPolygon", labels );
 	}
@@ -619,7 +619,7 @@ public class ParaMaxFlowPanel extends JPanel implements ActionListener, ChangeLi
 		}
 
 		if ( success ) {
-			this.icSumImg.setLongTypeSourceImage( this.imgSumLong );
+			this.icSumImg.setLongTypeOnlySourceImage( this.imgSumLong );
 			bExportSumImg.setEnabled( true );
 			bExportCurrentSegmentation.setEnabled( true );
 
@@ -850,13 +850,11 @@ public class ParaMaxFlowPanel extends JPanel implements ActionListener, ChangeLi
 			this.imgSegmentation = SegmentationMagic.returnSegmentation( imgSumLong, currSeg );
 			this.icSeg.setLongTypeOnlySourceImage( imgSegmentation );
 			//this.icSeg.setLongTypeSourceImage( imgSegmentation );
-		}
-		else if( e.getSource().equals( bForeground ) || e.getSource().equals( bBackground ))
-		{
+		} else if ( e.getSource().equals( bForeground ) || e.getSource().equals( bBackground ) ) {
 			// Checking the Foreground or Background
-			if(bForeground.isSelected())
+			if ( bForeground.isSelected() )
 				org.jhotdraw.draw.AttributeKeys.STROKE_COLOR.put( attributeMap, colorForeground );
-			else if(bBackground.isSelected())
+			else if ( bBackground.isSelected() )
 				org.jhotdraw.draw.AttributeKeys.STROKE_COLOR.put( attributeMap, colorBackground );
 		}
 	}
@@ -866,17 +864,12 @@ public class ParaMaxFlowPanel extends JPanel implements ActionListener, ChangeLi
 
 		if ( temp == null ) {
 			temp = new ImageJ();
-			
-			if(args.length > 0) {
-				IJ.open( args[0] );	
+
+			if ( args.length > 0 ) {
+				IJ.open( args[ 0 ] );
+			} else {
+				throw new IllegalArgumentException( "Please, set an image path in the program arguments." );
 			}
-			else {
-				throw new IllegalArgumentException("Please, set an image path in the program arguments.");
-			}
-			 
-			// IJ.open( "/Users/moon/Pictures/spim/spim-0.tif" );
-			//IJ.open( "/Users/jug/Desktop/clown.tif" );
-//			IJ.open( "/Users/jug/Desktop/demo.tif" );
 		}
 
 		final ImagePlus imgPlus = WindowManager.getCurrentImage();
