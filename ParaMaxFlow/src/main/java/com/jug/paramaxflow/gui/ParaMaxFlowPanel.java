@@ -619,15 +619,21 @@ public class ParaMaxFlowPanel extends JPanel implements ActionListener, ChangeLi
 		}
 
 		if ( success ) {
-			this.icSumImg.setLongTypeSourceImage( this.imgSumLong );
+			this.icSumImg.setSourceImage( this.imgSumLong );
 			bExportSumImg.setEnabled( true );
 			bExportCurrentSegmentation.setEnabled( true );
 
 			this.numSols = SegmentationMagic.getNumSolutions();
+
+			// HongKee(22/July/2014): I added this code for the first time to create a segmentation source image
+			// Later, it updates only ImageSource without making a converter.
+			this.imgSegmentation = SegmentationMagic.returnSegmentation( imgSumLong,  ( int ) this.numSols / 2);
+			this.icSeg.setSourceImage( imgSegmentation );
+
 			this.sliderSegmentation.setMaximum( ( int ) this.numSols );
 			this.sliderSegmentation.setValue( ( int ) this.numSols / 2 );
 
-			this.tabsViews.setSelectedIndex( 2 );
+			this.tabsViews.setSelectedIndex( 2 );		
 		}
 	}
 
@@ -765,7 +771,7 @@ public class ParaMaxFlowPanel extends JPanel implements ActionListener, ChangeLi
 		if ( this.classifierCostsModulation != null ) {
 			SegmentationMagic.setClassifier( this.classifierCostsModulation );
 			this.imgCostModulationImage = SegmentationMagic.returnClassification( this.imgOrig );
-			this.icCostFunctionModulation.setDoubleTypeSourceImage( this.imgCostModulationImage );
+			this.icCostFunctionModulation.setSourceImage( this.imgCostModulationImage );
 		} else {
 			JOptionPane.showMessageDialog( this.getRootPane(), "No classifier was loaded yet!" );
 		}
@@ -778,7 +784,7 @@ public class ParaMaxFlowPanel extends JPanel implements ActionListener, ChangeLi
 		if ( this.classifierUnaryCosts != null ) {
 			SegmentationMagic.setClassifier( this.classifierUnaryCosts );
 			this.imgUnaryCostImage = SegmentationMagic.returnClassification( this.imgOrig );
-			this.icUnaryPotentials.setDoubleTypeSourceImage( this.imgUnaryCostImage );
+			this.icUnaryPotentials.setSourceImage( this.imgUnaryCostImage );
 		} else {
 			JOptionPane.showMessageDialog( this.getRootPane(), "No classifier was loaded yet!" );
 		}
@@ -791,7 +797,7 @@ public class ParaMaxFlowPanel extends JPanel implements ActionListener, ChangeLi
 		if ( this.classifierPairwiseCosts != null ) {
 			SegmentationMagic.setClassifier( this.classifierPairwiseCosts );
 			this.imgPairwiseCostImage = SegmentationMagic.returnClassification( this.imgOrig );
-			this.icPairwisePotentials.setDoubleTypeSourceImage( this.imgPairwiseCostImage );
+			this.icPairwisePotentials.setSourceImage( this.imgPairwiseCostImage );
 		} else {
 			JOptionPane.showMessageDialog( this.getRootPane(), "No classifier was loaded yet!" );
 		}
@@ -848,8 +854,9 @@ public class ParaMaxFlowPanel extends JPanel implements ActionListener, ChangeLi
 		if ( e.getSource().equals( sliderSegmentation ) ) {
 			currSeg = sliderSegmentation.getValue();
 			this.imgSegmentation = SegmentationMagic.returnSegmentation( imgSumLong, currSeg );
-			this.icSeg.setLongTypeOnlySourceImage( imgSegmentation );
-			//this.icSeg.setLongTypeSourceImage( imgSegmentation );
+			
+			// HongKee(22/July/2014): setOnlySourceImage function just updates its source image without creating anything else.
+			this.icSeg.setOnlySourceImage( imgSegmentation );
 		}
 		else if( e.getSource().equals( bForeground ) || e.getSource().equals( bBackground ))
 		{

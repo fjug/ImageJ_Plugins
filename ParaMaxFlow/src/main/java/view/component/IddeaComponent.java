@@ -102,7 +102,7 @@ public class IddeaComponent extends JPanel implements ActionListener, ChangeList
 	private InteractiveRealViewer2D< DoubleType > interactiveViewer2D;
 
 	// The imglib2 image data container
-	private IntervalView< DoubleType > ivSourceImage = null;
+	private IntervalView ivSourceImage = null;
 
 	// JHotDraw related stuff
 	private DrawingEditor editor;
@@ -154,7 +154,7 @@ public class IddeaComponent extends JPanel implements ActionListener, ChangeList
 	 * Creates an <code>IddeaComponent</code> and adds the given
 	 * <code>soureImage</code> to it.
 	 */
-	public IddeaComponent( final IntervalView< DoubleType > sourceImage ) {
+	public IddeaComponent( final IntervalView sourceImage ) {
 
 		this.ivSourceImage = sourceImage;
 
@@ -285,7 +285,7 @@ public class IddeaComponent extends JPanel implements ActionListener, ChangeList
 	 * 
 	 * @return
 	 */
-	public IntervalView< DoubleType > getSourceImage() {
+	public IntervalView getSourceImage() {
 		return this.ivSourceImage;
 	}
 
@@ -326,20 +326,42 @@ public class IddeaComponent extends JPanel implements ActionListener, ChangeList
 	 * @param viewImg
 	 */
 	public < T extends RealType< T > & NativeType< T >> void setSourceImage( final IntervalView< T > viewImg ) {
+		this.ivSourceImage = viewImg;
+		
 		final T min = Views.iterable( viewImg ).firstElement().copy();
 		final T max = min.copy();
 		ImglibUtil.computeMinMax( viewImg, min, max );
 
 		RealRandomAccessible< T > interpolated = null;
-		if ( viewImg.numDimensions() > 2 ) {
-			interpolated = Views.interpolate( Views.extendZero( Views.hyperSlice( viewImg, 2, 0 ) ), new NearestNeighborInterpolatorFactory< T >() );
-		} else {
-			interpolated = Views.interpolate( Views.extendZero( viewImg ), new NearestNeighborInterpolatorFactory< T >() );
+		switch(viewImg.numDimensions())
+		{
+			case 2: interpolated = Views.interpolate( Views.extendZero( viewImg ), new NearestNeighborInterpolatorFactory< T >() );
+					break;
+			case 3: timeSlider.setMaximum( (int) viewImg.max( 2 ) ); tIndex = 0; showTimeSlider( true );				
+					interpolated = Views.interpolate( Views.extendZero( Views.hyperSlice( viewImg, 2, tIndex ) ), new NearestNeighborInterpolatorFactory< T >() );
+					break;
+			case 4: timeSlider.setMaximum( (int) viewImg.max( 3 ) ); tIndex = 0; showTimeSlider( true );
+					stackSlider.setMaximum( (int) viewImg.max( 2 ) ); zIndex = 0; showStackSlider( true ); 
+					interpolated = Views.interpolate( Views.extendZero( Views.hyperSlice( Views.hyperSlice( viewImg, 3, tIndex ), 2, zIndex ) ), new NearestNeighborInterpolatorFactory< T >() );
+					break;
+			default : throw new IllegalArgumentException("" + viewImg.numDimensions() + " Dimension size is not supported!");
 		}
 
-		final RealARGBConverter< T > converter = new RealARGBConverter< T >( min.getMinValue(), max.getMaxValue() );
+		final RealARGBConverter< T > converter = new RealARGBConverter< T >( min.getRealDouble(), max.getRealDouble() );
 
-		updateDoubleTypeSourceAndConverter( interpolated, converter );
+		updateSourceAndConverter( interpolated, converter );
+	}
+	
+	/**
+	 * Sets the image data to be displayed.
+	 * 
+	 * @param raiSource
+	 *            an RandomAccessibleInterval<T> containing the desired
+	 *            view
+	 *            onto the raw image data
+	 */
+	public < T extends RealType< T > & NativeType< T >> void setSourceImage( final RandomAccessibleInterval< T > raiSource ) {
+		this.setSourceImage( Views.interval( raiSource, raiSource ) );
 	}
 
 	/**
@@ -349,95 +371,39 @@ public class IddeaComponent extends JPanel implements ActionListener, ChangeList
 	 *            an IntervalView<DoubleType> containing the desired view
 	 *            onto the raw image data
 	 */
-	public void setDoubleTypeSourceImage( final IntervalView< DoubleType > sourceImage ) {
-		this.ivSourceImage = sourceImage;
-		
-		final DoubleType min = new DoubleType();
-		final DoubleType max = new DoubleType();
-		ImglibUtil.computeMinMax( sourceImage, min, max );
-
-		RealRandomAccessible< DoubleType > interpolated = null;
-		
-		switch(sourceImage.numDimensions())
-		{
-			case 2: interpolated = Views.interpolate( Views.extendZero( sourceImage ), new NearestNeighborInterpolatorFactory< DoubleType >() );
-					break;
-			case 3: timeSlider.setMaximum( (int) sourceImage.max( 2 ) ); tIndex = 0; showTimeSlider( true );				
-					interpolated = Views.interpolate( Views.extendZero( Views.hyperSlice( sourceImage, 2, tIndex ) ), new NearestNeighborInterpolatorFactory< DoubleType >() );
-					break;
-			case 4: timeSlider.setMaximum( (int) sourceImage.max( 3 ) ); tIndex = 0; showTimeSlider( true );
-					stackSlider.setMaximum( (int) sourceImage.max( 2 ) ); zIndex = 0; showStackSlider( true ); 
-					interpolated = Views.interpolate( Views.extendZero( Views.hyperSlice( Views.hyperSlice( sourceImage, 3, tIndex ), 2, zIndex ) ), new NearestNeighborInterpolatorFactory< DoubleType >() );
-					break;
-			default : throw new IllegalArgumentException("" + sourceImage.numDimensions() + " Dimension size is not supported!");
-		}
-
-		final RealARGBConverter< DoubleType > converter = new RealARGBConverter< DoubleType >( min.get(), max.get() );
-
-		updateDoubleTypeSourceAndConverter( interpolated, converter );
+	public < T extends RealType< T > & NativeType< T >> void setDoubleTypeSourceImage( final IntervalView< T > sourceImage ) {
+		this.setSourceImage( sourceImage );
 	}
 
-	/**
-	 * Sets the image data to be displayed.
-	 * 
-	 * @param raiSource
-	 *            an RandomAccessibleInterval<DoubleType> containing the desired
-	 *            view
-	 *            onto the raw image data
-	 */
-	public void setDoubleTypeSourceImage( final RandomAccessibleInterval< DoubleType > raiSource ) {
-		this.setDoubleTypeSourceImage( Views.interval( raiSource, raiSource ) );
-	}
-
-	/**
-	 * Sets the image data to be displayed.
-	 * 
-	 * @param glf
-	 *            the GrowthLineFrameto be displayed
-	 * @param sourceImage
-	 *            an IntervalView<LongType> containing the desired view
-	 *            onto the raw image data
-	 */
-	public void setLongTypeSourceImage( final IntervalView< LongType > sourceImage ) {
-		
-		final LongType min = new LongType();
-		final LongType max = new LongType();
-		ImglibUtil.computeMinMax( sourceImage, min, max );
-
-		final RealRandomAccessible< LongType > interpolated = Views.interpolate( Views.extendZero( sourceImage ), new NearestNeighborInterpolatorFactory< LongType >() );
-
-		final RealARGBConverter< LongType > converter = new RealARGBConverter< LongType >( min.get(), max.get() );
-
-		updateDoubleTypeSourceAndConverter( interpolated, converter );
-	}
-	
 	/**
 	 * Updates the only sourceImage without updating converter
 	 * 
 	 * @param sourceImage
-	 *            an IntervalView<LongType> containing the desired view
+	 *            an IntervalView<T> containing the desired view
 	 *            onto the raw image data
 	 */
-	public void setLongTypeOnlySourceImage( final RandomAccessibleInterval< LongType > raiSource ) 
-	{		
-		final IntervalView< LongType > sourceImage = Views.interval( raiSource, raiSource );
-		final RealRandomAccessible< LongType > interpolated = Views.interpolate( Views.extendZero( sourceImage ), new NearestNeighborInterpolatorFactory< LongType >() );
-
-		updateDoubleTypeSource( interpolated );
-	}
-	
+	public < T extends RealType< T > & NativeType< T >> void setOnlySourceImage( final RandomAccessibleInterval< T > raiSource ) 
+	{
+		final IntervalView< T > sourceImage = Views.interval( raiSource, raiSource );
+		this.ivSourceImage = sourceImage;
+				
+		RealRandomAccessible< T > interpolated = null;
 		
+		switch(sourceImage.numDimensions())
+		{
+			case 2: interpolated = Views.interpolate( Views.extendZero( sourceImage ), new NearestNeighborInterpolatorFactory< T >() );
+					break;
+			case 3: timeSlider.setMaximum( (int) sourceImage.max( 2 ) ); showTimeSlider( true );				
+					interpolated = Views.interpolate( Views.extendZero( Views.hyperSlice( sourceImage, 2, tIndex ) ), new NearestNeighborInterpolatorFactory< T >() );
+					break;
+			case 4: timeSlider.setMaximum( (int) sourceImage.max( 3 ) ); showTimeSlider( true );
+					stackSlider.setMaximum( (int) sourceImage.max( 2 ) ); showStackSlider( true ); 
+					interpolated = Views.interpolate( Views.extendZero( Views.hyperSlice( Views.hyperSlice( sourceImage, 3, tIndex ), 2, zIndex ) ), new NearestNeighborInterpolatorFactory< T >() );
+					break;
+			default : throw new IllegalArgumentException("" + sourceImage.numDimensions() + " Dimension size is not supported!");
+		}
 
-	/**
-	 * Sets the image data to be displayed.
-	 * 
-	 * @param raiSource
-	 *            an RandomAccessibleInterval<LongType> containing the desired
-	 *            view
-	 *            onto the raw image data
-	 */
-	public void setLongTypeSourceImage( final RandomAccessibleInterval< LongType > raiSource ) {
-		this.setLongTypeSourceImage( Views.interval( raiSource, raiSource ) );
+		updateSource( interpolated );
 	}
 
 	//////////////////////////// OVERRIDDEN /////////////////////////////////
@@ -764,7 +730,7 @@ public class IddeaComponent extends JPanel implements ActionListener, ChangeList
 	 * 
 	 * @param source
 	 */
-	private void updateDoubleTypeSourceAndConverter( final RealRandomAccessible source, final RealARGBConverter converter ) {
+	private void updateSourceAndConverter( final RealRandomAccessible source, final RealARGBConverter converter ) {
 		interactiveViewer2D.updateConverter( converter );
 		interactiveViewer2D.updateSource( source );
 		interactiveViewer2D.getJHotDrawDisplay().resetTransform();
@@ -775,7 +741,7 @@ public class IddeaComponent extends JPanel implements ActionListener, ChangeList
 	 * 
 	 * @param source
 	 */
-	private void updateDoubleTypeSource( final RealRandomAccessible source ) {
+	private void updateSource( final RealRandomAccessible source ) {
 		interactiveViewer2D.updateSource( source );
 	}
 
@@ -1003,31 +969,25 @@ public class IddeaComponent extends JPanel implements ActionListener, ChangeList
 	/**
 	 * Update the display view.
 	 */
-	private void updateView() {
+	private < T extends RealType< T > & NativeType< T >> void updateView() {
 
-		IntervalView< DoubleType > interval;
-		
-		switch(ivSourceImage.numDimensions())
+		if(this.ivSourceImage != null)
 		{
-			case 2: interval = ivSourceImage;
-					break;
-			case 3:	interval = Views.hyperSlice( ivSourceImage, 2, tIndex );
-					break;
-			case 4: interval = Views.hyperSlice( Views.hyperSlice( ivSourceImage, 3, tIndex ), 2, zIndex );
-					break;
-			default : throw new IllegalArgumentException("" + ivSourceImage.numDimensions() + " Dimension size is not supported!");
-		}
-				
-		RealRandomAccessible< DoubleType > interpolated = Views.interpolate( Views.extendZero( interval ), new NearestNeighborInterpolatorFactory< DoubleType >() );
-		interactiveViewer2D.updateSource( interpolated );
-		
-		// In case of needing to update MinMax values when user changes time or stack
-		
-//		final DoubleType min = new DoubleType();
-//		final DoubleType max = new DoubleType();
-//		ImglibUtil.computeMinMax( interval, min, max );
-//		final RealARGBConverter< DoubleType > converter = new RealARGBConverter< DoubleType >( min.get(), max.get() );
-//
-//		updateDoubleTypeSourceAndConverter( interpolated, converter );
+			IntervalView< T > interval;
+			
+			switch(ivSourceImage.numDimensions())
+			{
+				case 2: interval = ivSourceImage;
+						break;
+				case 3:	interval = Views.hyperSlice( ivSourceImage, 2, tIndex );
+						break;
+				case 4: interval = Views.hyperSlice( Views.hyperSlice( ivSourceImage, 3, tIndex ), 2, zIndex );
+						break;
+				default : throw new IllegalArgumentException("" + ivSourceImage.numDimensions() + " Dimension size is not supported!");
+			}
+					
+			RealRandomAccessible< T > interpolated = Views.interpolate( Views.extendZero( interval ), new NearestNeighborInterpolatorFactory< T >() );
+			updateSource(interpolated);
+		}		
 	}
 }
