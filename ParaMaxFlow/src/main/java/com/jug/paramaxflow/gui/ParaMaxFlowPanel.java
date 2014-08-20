@@ -627,13 +627,13 @@ public class ParaMaxFlowPanel extends JPanel implements ActionListener, ChangeLi
 
 			// HongKee(22/July/2014): I added this code for the first time to create a segmentation source image
 			// Later, it updates only ImageSource without making a converter.
-			this.imgSegmentation = SegmentationMagic.returnSegmentation( imgSumLong,  ( int ) this.numSols / 2);
+			this.imgSegmentation = SegmentationMagic.returnSegmentation( imgSumLong, ( int ) this.numSols / 2 );
 			this.icSeg.setSourceImage( imgSegmentation );
 
 			this.sliderSegmentation.setMaximum( ( int ) this.numSols );
 			this.sliderSegmentation.setValue( ( int ) this.numSols / 2 );
 
-			this.tabsViews.setSelectedIndex( 2 );		
+			this.tabsViews.setSelectedIndex( 2 );
 		}
 	}
 
@@ -854,12 +854,10 @@ public class ParaMaxFlowPanel extends JPanel implements ActionListener, ChangeLi
 		if ( e.getSource().equals( sliderSegmentation ) ) {
 			currSeg = sliderSegmentation.getValue();
 			this.imgSegmentation = SegmentationMagic.returnSegmentation( imgSumLong, currSeg );
-			
+
 			// HongKee(22/July/2014): setOnlySourceImage function just updates its source image without creating anything else.
 			this.icSeg.setOnlySourceImage( imgSegmentation );
-		}
-		else if( e.getSource().equals( bForeground ) || e.getSource().equals( bBackground ))
-		{
+		} else if ( e.getSource().equals( bForeground ) || e.getSource().equals( bBackground ) ) {
 			// Checking the Foreground or Background
 			if ( bForeground.isSelected() )
 				org.jhotdraw.draw.AttributeKeys.STROKE_COLOR.put( attributeMap, colorForeground );
@@ -879,10 +877,7 @@ public class ParaMaxFlowPanel extends JPanel implements ActionListener, ChangeLi
 			} else {
 				throw new IllegalArgumentException( "Please, set an image path in the program arguments." );
 			}
-			else {
-				throw new IllegalArgumentException("Please, set an image path in the program arguments.");
-			}
-			 
+
 			// IJ.open( "/Users/moon/Pictures/spim/spim-0.tif" );
 			//IJ.open( "/Users/jug/Desktop/clown.tif" );
 //			IJ.open( "/Users/jug/Desktop/demo.tif" );
